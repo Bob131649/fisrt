@@ -86,9 +86,12 @@ def load_successful_xy_from_hdf5(h5file, use_qpos=False, success_reward=0.9):
 
     successful_segments = []
     reward_hit_segments = []
+    start_points = []
     for start_idx, end_idx in successful_ranges:
         episode_xy = xy[start_idx:end_idx]
         reward_hit_mask = np.isclose(rewards[start_idx:end_idx], 1.0)
+        if episode_xy.shape[0] > 0:
+            start_points.append(episode_xy[0:1])
         successful_segments.append(episode_xy[~reward_hit_mask])
         reward_hit_segments.append(episode_xy[reward_hit_mask])
 
@@ -112,9 +115,15 @@ def load_successful_xy_from_hdf5(h5file, use_qpos=False, success_reward=0.9):
     else:
         reward_hit_xy = np.empty((0, 2), dtype=np.float64)
 
+    if start_points:
+        start_xy = np.concatenate(start_points, axis=0)
+    else:
+        start_xy = np.empty((0, 2), dtype=np.float64)
+
     return (
         successful_xy,
         reward_hit_xy,
+        start_xy,
         source,
         len(episode_ranges),
         len(successful_ranges),
@@ -142,6 +151,7 @@ def sample_points(xy, max_points=None, seed=0):
 def plot_scatter(
     xy,
     reward_hit_xy=None,
+    start_xy=None,
     title=None,
     output_path=None,
     figsize=(6.5, 6.0),
@@ -174,6 +184,17 @@ def plot_scatter(
             alpha=0.05,
             marker="x",
             linewidths=max(linewidths, 0.5),
+        )
+
+    if start_xy is not None and start_xy.shape[0] > 0:
+        ax.scatter(
+            start_xy[:, 0],
+            start_xy[:, 1],
+            s=max(size * 8, 8),
+            c="#ff2d2d",
+            alpha=0.9,
+            marker="o",
+            linewidths=0.0,
         )
 
     ax.set_aspect("equal", adjustable="box")
@@ -287,7 +308,7 @@ def main():
         raise FileNotFoundError(f"Dataset file not found: {args.dataset_path}")
 
     with h5py.File(args.dataset_path, "r") as f:
-        xy, reward_hit_xy, source, total_episodes, successful_episodes = load_successful_xy_from_hdf5(
+        xy, reward_hit_xy, start_xy, source, total_episodes, successful_episodes = load_successful_xy_from_hdf5(
             f,
             use_qpos=args.use_qpos,
             success_reward=args.success_reward,
@@ -302,6 +323,8 @@ def main():
             max_points=args.max_points,
             seed=args.seed,
         )
+    if start_xy.shape[0] > 0:
+        start_xy = filter_valid_xy(start_xy)
 
     print(f"Dataset visualization summary: {xy.shape[0]}")
     print(f"Loaded points from: {source}")
@@ -309,6 +332,7 @@ def main():
     print(f"Successful episodes: {successful_episodes}")
     print(f"Number of plotted points: {xy.shape[0]}")
     print(f"Number of reward-hit points: {reward_hit_xy.shape[0]}")
+    print(f"Number of start points: {start_xy.shape[0]}")
     print(f"x range: [{xy[:, 0].min():.4f}, {xy[:, 0].max():.4f}]")
     print(f"y range: [{xy[:, 1].min():.4f}, {xy[:, 1].max():.4f}]")
 
@@ -320,6 +344,7 @@ def main():
     plot_scatter(
         xy=xy,
         reward_hit_xy=reward_hit_xy,
+        start_xy=start_xy,
         title=title,
         output_path=args.output_path,
         marker=args.marker,

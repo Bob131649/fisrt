@@ -42,7 +42,7 @@ def main():
     parser.add_argument('--render', action='store_true', help='Render trajectories')
     parser.add_argument('--noisy', action='store_true', help='Noisy actions')
     parser.add_argument('--env_name', type=str, default='maze2d-umaze-v1', help='Maze type')
-    parser.add_argument('--num_samples', type=int, default=int(1e6), help='Num samples to collect')
+    parser.add_argument('--num_samples', type=int, default=int(1e5), help='Num samples to collect')
     args = parser.parse_args()
 
     env = gym.make(args.env_name)

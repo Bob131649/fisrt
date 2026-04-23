@@ -1,8 +1,10 @@
 import argparse
+import os
 import time
 
 import d4rl
 import gym
+import h5py
 import numpy as np
 from mujoco_py.generated import const
 
@@ -25,9 +27,31 @@ def compute_episode_ranges(terminals, timeouts):
     return episode_ranges
 
 
-def add_circle_marker(viewer, point, rgba, radius, height, label=""):
+def get_hdf5_keys(h5file):
+    keys = []
+
+    def visitor(name, item):
+        if isinstance(item, h5py.Dataset):
+            keys.append(name)
+
+    h5file.visititems(visitor)
+    return keys
+
+
+def load_dataset_from_hdf5(dataset_path):
+    data_dict = {}
+    with h5py.File(dataset_path, "r") as dataset_file:
+        for key in get_hdf5_keys(dataset_file):
+            try:
+                data_dict[key] = dataset_file[key][:]
+            except ValueError:
+                data_dict[key] = dataset_file[key][()]
+    return data_dict
+
+
+def add_circle_marker(viewer, point, rgba, radius, height, label="", xy_offset=(0.0, 0.0)):
     viewer.add_marker(
-        pos=np.array([point[0], point[1], height]),
+        pos=np.array([point[0] + xy_offset[0], point[1] + xy_offset[1], height]),
         size=np.array([radius, radius, radius]),
         rgba=np.array(rgba),
         type=const.GEOM_SPHERE,
@@ -66,12 +90,23 @@ def infer_episode_success(rewards, start_idx, end_idx):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env_name", type=str, default="antmaze-umaze-v0")
+    parser.add_argument(
+        "--env_name",
+        type=str,
+        default=None,
+        help="Optional display name for this dataset run. Does not need to be a registered Gym env.",
+    )
+    parser.add_argument(
+        "--render_env_name",
+        type=str,
+        default="maze2d-large-v1",
+        help="Registered Gym env used only for rendering/replay state.",
+    )
     parser.add_argument(
         "--dataset_path",
         type=str,
-        default=None,
-        help="Optional local HDF5 dataset path. If omitted, use env.get_dataset().",
+        required=True,
+        help="Local HDF5 dataset path to visualize.",
     )
     parser.add_argument(
         "--episode_id",
@@ -102,12 +137,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    env = gym.make(args.env_name)
-
-    if args.dataset_path is not None:
-        dataset = env.get_dataset(h5path=args.dataset_path)
-    else:
-        dataset = env.get_dataset()
+    dataset_name = args.env_name or os.path.splitext(os.path.basename(args.dataset_path))[0]
+    env = gym.make(args.render_env_name)
+    dataset = load_dataset_from_hdf5(args.dataset_path)
 
     required_keys = [
         "infos/qpos",
@@ -140,6 +172,8 @@ if __name__ == "__main__":
         )
 
     print(f"Loaded {qpos.shape[0]} transitions")
+    print(f"Dataset name: {dataset_name}")
+    print(f"Render env: {args.render_env_name}")
     print(f"Observations shape: {observations.shape}")
     print(f"Rewards shape: {rewards.shape}")
     print(f"Actions shape: {actions.shape}")
@@ -147,6 +181,7 @@ if __name__ == "__main__":
     print(f"Start playing from episode {args.episode_id}")
 
     base_env = env.unwrapped
+    marker_offset = (1.0, 1.0) if "maze2d" in args.render_env_name else (0.0, 0.0)
     env.reset()
     env.render()
 
@@ -195,6 +230,7 @@ if __name__ == "__main__":
                         radius=0.2,
                         height=0.2,
                         label="start",
+                        xy_offset=marker_offset,
                     )
 
                 if args.show_goal and episode_goal is not None:
@@ -205,6 +241,7 @@ if __name__ == "__main__":
                         radius=0.2,
                         height=0.2,
                         label="goal",
+                        xy_offset=marker_offset,
                     )
 
             env.render()
