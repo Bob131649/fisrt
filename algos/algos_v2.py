@@ -56,6 +56,7 @@ class Latent(nn.Module):
         with torch.no_grad():
             state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
             latent_a = self.actor(state)
+            #latent_a = None
 
             action = self.actor_vae.decode(state, z=latent_a)
             q1, q2 = self.critic(state, action)
@@ -114,6 +115,7 @@ class Latent(nn.Module):
         
         loss_rc, loss_kl, a_loss, loss_std, loss_mean= None, None, None, None, None
 
+# update vae
         if iter_id % 1 == 0:
             with torch.no_grad():
                 q1_a, q2_a = self.critic(state, action)
@@ -148,6 +150,7 @@ class Latent(nn.Module):
             loss_kl = (kld_loss*weight.view(-1,1)).mean().item()
             a_loss = q_pi.mean().item()
 
+#update actor
         if iter_id % 2 == 0:
             # train latent policy 
             latent_actor_action = self.actor(state)

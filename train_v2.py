@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse, os, torch
+import argparse, os, torch, h5py
 import numpy as np
 import matplotlib
 matplotlib.use("TkAgg")  # needs Tk installed
@@ -12,6 +12,26 @@ from tqdm.auto import tqdm
 from logger import logger, setup_logger
 from dataset.d4rl_dataset import D4rlDataset
 from torch.utils.data import DataLoader
+
+
+def load_hdf5_dataset(dataset_path):
+    dataset = {}
+    with h5py.File(dataset_path, "r") as f:
+        for key in f.keys():
+            obj = f[key]
+            if isinstance(obj, h5py.Dataset):
+                dataset[key] = obj[:]
+            elif isinstance(obj, h5py.Group):
+                for sub_key in obj.keys():
+                    dataset[f"{key}/{sub_key}"] = obj[sub_key][:]
+
+    required_keys = ["observations", "actions", "next_observations", "rewards", "terminals"]
+    missing_keys = [key for key in required_keys if key not in dataset]
+    if missing_keys:
+        raise ValueError(
+            f"Dataset file is missing required keys: {', '.join(missing_keys)}"
+        )
+    return dataset
 
 
 def eval_policy(policy, env, replay_buffer, eval_episodes=10, plot=False):
@@ -70,6 +90,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_model", default=True, type=bool)        # Save model and optimizer parameters
     parser.add_argument("--save_freq", default=50, type=int)           # How often it saves the model (epoch)
     parser.add_argument("--env_name", default="maze2d-large-v1")     # OpenAI gym environment name
+    parser.add_argument("--dataset_path", default="", type=str)      # Optional custom dataset path (.hdf5)
     parser.add_argument("--seed", default=789, type=int)                  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--eval_freq", default=10000, type=int)           # How often (time steps) we evaluate
     parser.add_argument("--max_timesteps", default=1e6, type=int)      # Max time steps to run environment for
@@ -118,7 +139,13 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
 
     # Load Dataset
-    dataset = d4rl.qlearning_dataset(env)  # Load d4rl dataset
+    if args.dataset_path:
+        if not os.path.isfile(args.dataset_path):
+            raise FileNotFoundError(f"Dataset file not found: {args.dataset_path}")
+        print(f"loading custom dataset from: {args.dataset_path}")
+        dataset = load_hdf5_dataset(args.dataset_path)
+    else:
+        dataset = d4rl.qlearning_dataset(env)  # Load d4rl dataset
     if 'antmaze' in args.env_name:
         dataset['rewards'] = (dataset['rewards']*100) #(dataset['rewards']*300)
         min_v = 0
@@ -193,3 +220,5 @@ if __name__ == "__main__":
                                            rec=np.mean(rec_list), kl=np.mean(kl_list))
 
     policy.save('model', folder_name)
+
+
