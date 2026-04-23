@@ -70,9 +70,9 @@ if __name__ == "__main__":
     parser.add_argument("--save_model", default=True, type=bool)        # Save model and optimizer parameters
     parser.add_argument("--save_freq", default=50, type=int)           # How often it saves the model (epoch)
     parser.add_argument("--env_name", default="maze2d-large-v1")     # OpenAI gym environment name
-    parser.add_argument("--seed", default=789, type=int)                  # Sets Gym, PyTorch and Numpy seeds
+    parser.add_argument("--seed", default=456, type=int)                  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--eval_freq", default=10000, type=int)           # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=1e6, type=int)      # Max time steps to run environment for
+    parser.add_argument("--max_timesteps", default=1800000, type=int)      # Max time steps to run environment for
     parser.add_argument('--batch_size', default=512, type=int)
     parser.add_argument('--vae_lr', default=2e-4, type=float)	        # action policy (VAE) learning rate
     parser.add_argument('--actor_lr', default=2e-4, type=float)	        # latent policy learning rate
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     parser.add_argument('--tau', default=0.005, type=float)	            # delayed learning rate
     parser.add_argument('--discount', default=0.99, type=float)	        # discount factor
 
-    parser.add_argument('--expectile', default=0.9, type=float)	        # expectile to compute weight for samples
+    parser.add_argument('--expectile', default=0.5, type=float)	        # expectile to compute weight for samples
     parser.add_argument('--kl_beta', default=1.0, type=float)	            # weight for kl loss to train CVAE
     parser.add_argument('--max_latent_action', default=0.675, type=float)	# maximum value for the latent policy
     parser.add_argument('--doubleq_min', default=1.0, type=float)         # weight for the minimum Q value

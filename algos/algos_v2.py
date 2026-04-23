@@ -55,7 +55,8 @@ class Latent(nn.Module):
     def select_action(self, state):
         with torch.no_grad():
             state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
-            latent_a = self.actor(state)
+            # latent_a = self.actor(state)
+            latent_a = None
 
             action = self.actor_vae.decode(state, z=latent_a)
             q1, q2 = self.critic(state, action)
