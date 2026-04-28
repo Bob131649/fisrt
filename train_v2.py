@@ -25,7 +25,7 @@ def load_hdf5_dataset(dataset_path):
                 for sub_key in obj.keys():
                     dataset[f"{key}/{sub_key}"] = obj[sub_key][:]
 
-    required_keys = ["observations", "actions", "next_observations", "rewards", "terminals"]
+    required_keys = ["observations", "actions", "rewards", "terminals"]
     missing_keys = [key for key in required_keys if key not in dataset]
     if missing_keys:
         raise ValueError(
@@ -143,7 +143,8 @@ if __name__ == "__main__":
         if not os.path.isfile(args.dataset_path):
             raise FileNotFoundError(f"Dataset file not found: {args.dataset_path}")
         print(f"loading custom dataset from: {args.dataset_path}")
-        dataset = load_hdf5_dataset(args.dataset_path)
+        raw_dataset = load_hdf5_dataset(args.dataset_path)
+        dataset = d4rl.qlearning_dataset(env, dataset=raw_dataset)
     else:
         dataset = d4rl.qlearning_dataset(env)  # Load d4rl dataset
     if 'antmaze' in args.env_name:
@@ -220,5 +221,4 @@ if __name__ == "__main__":
                                            rec=np.mean(rec_list), kl=np.mean(kl_list))
 
     policy.save('model', folder_name)
-
 
