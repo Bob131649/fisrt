@@ -148,28 +148,29 @@ class Latent(nn.Module):
             loss_rc = (recons_loss_ori*weight.view(-1,1)).mean().item()
             loss_kl = (kld_loss*weight.view(-1,1)).mean().item()
             a_loss = q_pi.mean().item()
+            
+        # update latent actor
+        # if iter_id % 2 == 0:
+        #     # train latent policy 
+        #     latent_actor_action = self.actor(state)
+        #     latent_actor_action = latent_actor_action
 
-        if iter_id % 2 == 0:
-            # train latent policy 
-            latent_actor_action = self.actor(state)
-            latent_actor_action = latent_actor_action
+        #     actor_action = self.actor_vae.decode(state, z=latent_actor_action)
+        #     q1_pi, q2_pi = self.critic(state, actor_action)
+        #     q_pi = torch.min(q1_pi, q2_pi)
 
-            actor_action = self.actor_vae.decode(state, z=latent_actor_action)
-            q1_pi, q2_pi = self.critic(state, actor_action)
-            q_pi = torch.min(q1_pi, q2_pi)
+        #     actor_qloss = -q_pi.mean()
+        #     actor_reg_loss = torch.mean(latent_actor_action ** 2)
+        #     actor_loss = actor_qloss + actor_reg_loss
 
-            actor_qloss = -q_pi.mean()
-            actor_reg_loss = torch.mean(latent_actor_action ** 2)
-            actor_loss = actor_qloss + actor_reg_loss
+        #     self.actor_optimizer.zero_grad()
+        #     actor_loss.backward()
+        #     torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=self.g_clip)
+        #     self.actor_optimizer.step()
+        #     a_loss = -actor_loss.item()
 
-            self.actor_optimizer.zero_grad()
-            actor_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=self.g_clip)
-            self.actor_optimizer.step()
-            a_loss = -actor_loss.item()
-
-            for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
-                target_param.data.copy_(self.tau_act * param.data + (1 - self.tau_act) * target_param.data)
+        #     for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
+        #         target_param.data.copy_(self.tau_act * param.data + (1 - self.tau_act) * target_param.data)
         
         for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
             target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
