@@ -15,8 +15,8 @@ from fixed_reset_wrapper import FixedResetWrapper
 
 FIXED_START_MODE = "cycle"
 
-# Success region and randomized keep-step options.
-SUCCESS_RADIUS = 0.5
+# Success region and radomized keep-step options.
+SUCCESS_RADIUS = 0.1
 #SUCCESS_KEEP_STEP_CHOICES = [3, 5]
 
 
@@ -81,7 +81,7 @@ def get_env_goal(env):
 def sample_keep_steps(env_name):
     if "antmaze" in env_name:
         return 1
-    return 5
+    return 20
 
 
 def format_start_progress(success_counts):
@@ -143,7 +143,7 @@ def build_policy(args, env_name):
         env_name=env_name,
         start_mode=FIXED_START_MODE,
         start_noise_scale=0.5,
-        goal_noise_scale=None,
+        goal_noise_scale=0,
     )
     return env, norm_dataset, policy
 
