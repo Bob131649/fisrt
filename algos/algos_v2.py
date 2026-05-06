@@ -135,8 +135,8 @@ class Latent(nn.Module):
 
             free_bits_tensor = torch.tensor(free_bits, device=kl_per_dim.device)
             kl_freebits = torch.maximum(kl_per_dim, free_bits_tensor)
-            kld_loss = kl_freebits.sum(dim=1).view(-1, 1)
-            actor_vae_loss = (recon_loss + self.kl_beta * kld_loss)*weight.view(-1,1)
+            kld_loss = kl_per_dim.sum(dim=1).view(-1, 1)
+            actor_vae_loss = (recon_loss + self.kl_beta * kld_loss)
 
             actor_vae_loss = actor_vae_loss.mean()
             self.actorvae_optimizer.zero_grad()

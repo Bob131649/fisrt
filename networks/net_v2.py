@@ -56,7 +56,7 @@ class ActorVAE(nn.Module):
         log_var = self.log_var(z)
         std = torch.exp(log_var/2)
         z = mean + std * torch.randn_like(std)
-
+        
         u = self.decode(state, z)
 
         return u, mean, log_var

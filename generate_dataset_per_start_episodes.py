@@ -32,7 +32,7 @@ ENV_FIXED_STARTS = {
 }
 
 # Success region and randomized keep-step options.
-SUCCESS_RADIUS = 0.5
+SUCCESS_RADIUS = 0.1
 #SUCCESS_KEEP_STEP_CHOICES = [3, 5]
 
 
@@ -108,7 +108,7 @@ def get_env_goal(env):
 
 
 def sample_keep_steps():
-    return int(5)
+    return int(20)
 
 
 def reset_env(env, start_locations=None, start_idx=0, start_mode="cycle"):
