@@ -1,0 +1,36 @@
+2026-05-08 10:06:02.198327 CST | [maze2d-large-v1] ---------------  ----------
+2026-05-08 10:06:02.198848 CST | [maze2d-large-v1] Training Epochs    0
+2026-05-08 10:06:02.199190 CST | [maze2d-large-v1] AverageReturn    244.4
+2026-05-08 10:06:02.199519 CST | [maze2d-large-v1] NormReturn         0.889296
+2026-05-08 10:06:02.199844 CST | [maze2d-large-v1] L_Act              4.59216
+2026-05-08 10:06:02.200173 CST | [maze2d-large-v1] L_Crit             0.03649
+2026-05-08 10:06:02.200499 CST | [maze2d-large-v1] Weight             0.5
+2026-05-08 10:06:02.200823 CST | [maze2d-large-v1] kl                 1
+2026-05-08 10:06:02.201147 CST | [maze2d-large-v1] ---------------  ----------
+2026-05-08 10:07:46.704738 CST | [maze2d-large-v1] ---------------  -----------
+2026-05-08 10:07:46.704842 CST | [maze2d-large-v1] Training Epochs    1
+2026-05-08 10:07:46.704872 CST | [maze2d-large-v1] AverageReturn    305.8
+2026-05-08 10:07:46.704896 CST | [maze2d-large-v1] NormReturn         1.11901
+2026-05-08 10:07:46.704920 CST | [maze2d-large-v1] L_Act             12.7399
+2026-05-08 10:07:46.704944 CST | [maze2d-large-v1] L_Crit             0.0594914
+2026-05-08 10:07:46.704967 CST | [maze2d-large-v1] Weight             0.5
+2026-05-08 10:07:46.704991 CST | [maze2d-large-v1] kl                 1
+2026-05-08 10:07:46.705014 CST | [maze2d-large-v1] ---------------  -----------
+2026-05-08 10:09:31.170311 CST | [maze2d-large-v1] ---------------  ----------
+2026-05-08 10:09:31.170419 CST | [maze2d-large-v1] Training Epochs    2
+2026-05-08 10:09:31.170449 CST | [maze2d-large-v1] AverageReturn    325.3
+2026-05-08 10:09:31.170473 CST | [maze2d-large-v1] NormReturn         1.19196
+2026-05-08 10:09:31.170497 CST | [maze2d-large-v1] L_Act             19.8546
+2026-05-08 10:09:31.170521 CST | [maze2d-large-v1] L_Crit             0.150004
+2026-05-08 10:09:31.170545 CST | [maze2d-large-v1] Weight             0.5
+2026-05-08 10:09:31.170568 CST | [maze2d-large-v1] kl                 1
+2026-05-08 10:09:31.170592 CST | [maze2d-large-v1] ---------------  ----------
+2026-05-08 10:11:13.007113 CST | [maze2d-large-v1] ---------------  ----------
+2026-05-08 10:11:13.007221 CST | [maze2d-large-v1] Training Epochs    3
+2026-05-08 10:11:13.007255 CST | [maze2d-large-v1] AverageReturn    399
+2026-05-08 10:11:13.007280 CST | [maze2d-large-v1] NormReturn         1.46769
+2026-05-08 10:11:13.007304 CST | [maze2d-large-v1] L_Act             25.0325
+2026-05-08 10:11:13.007327 CST | [maze2d-large-v1] L_Crit             0.322303
+2026-05-08 10:11:13.007351 CST | [maze2d-large-v1] Weight             0.5
+2026-05-08 10:11:13.007374 CST | [maze2d-large-v1] kl                 1
+2026-05-08 10:11:13.007398 CST | [maze2d-large-v1] ---------------  ----------
