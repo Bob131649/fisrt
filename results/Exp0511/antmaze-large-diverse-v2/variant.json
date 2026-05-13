@@ -1,0 +1,30 @@
+{
+  "ExpID": 511,
+  "actor_lr": 0.0002,
+  "batch_size": 512,
+  "critic_lr": 0.0002,
+  "dataset_path": [
+    "/home/guannan/first/dataset/generated_dataset/antmaze/test/antmaze-expert-510_success250.hdf5",
+    "/home/guannan/first/dataset/generated_dataset/antmaze/mixed/Ant_maze_hardest-maze_noisy_multistart_True_multigoal_False_sparse_fixed.hdf5"
+  ],
+  "device": "cuda",
+  "discount": 0.99,
+  "doubleq_min": 1.0,
+  "env_name": "antmaze-large-diverse-v2",
+  "eval_freq": 10000,
+  "expectile": 0.95,
+  "kl_beta": 1.0,
+  "load_model": 0,
+  "log_dir": "./results/",
+  "max_latent_action": 0.675,
+  "max_timesteps": 2000000.0,
+  "no_noise": false,
+  "node": "guannan",
+  "plot": true,
+  "save_freq": 50,
+  "save_model": true,
+  "seed": 789,
+  "tau": 0.005,
+  "terminal_log_path": "",
+  "vae_lr": 0.0002
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse, os, torch, h5py
+import argparse, os, sys, torch, h5py
 import numpy as np
 import matplotlib
 matplotlib.use("TkAgg")  # needs Tk installed
@@ -11,7 +11,22 @@ import gym, d4rl
 from tqdm.auto import tqdm
 from logger import logger, setup_logger
 from dataset.d4rl_dataset import D4rlDataset
+from fixed_reset_wrapper import FixedResetWrapper
 from torch.utils.data import DataLoader
+
+
+class TeeStream:
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, data):
+        for stream in self.streams:
+            stream.write(data)
+            stream.flush()
+
+    def flush(self):
+        for stream in self.streams:
+            stream.flush()
 
 
 def load_hdf5_dataset(dataset_path):
@@ -34,15 +49,91 @@ def load_hdf5_dataset(dataset_path):
     return dataset
 
 
+def to_qlearning_dataset(env, raw_dataset):
+    if "next_observations" in raw_dataset:
+        required_keys = ["observations", "actions", "next_observations", "rewards", "terminals"]
+        missing_keys = [key for key in required_keys if key not in raw_dataset]
+        if missing_keys:
+            raise ValueError(
+                "Dataset file is missing required qlearning keys: "
+                + ", ".join(missing_keys)
+            )
+        dataset = {
+            "observations": raw_dataset["observations"],
+            "actions": raw_dataset["actions"],
+            "next_observations": raw_dataset["next_observations"],
+            "rewards": raw_dataset["rewards"],
+            "terminals": raw_dataset["terminals"],
+        }
+        return dataset
+
+    return d4rl.qlearning_dataset(env, dataset=raw_dataset)
+
+
+def merge_qlearning_datasets(datasets):
+    if not datasets:
+        raise ValueError("No datasets were provided for merging.")
+
+    merged = {}
+    keys = sorted(datasets[0].keys())
+    for key in keys:
+        merged[key] = np.concatenate([dataset[key] for dataset in datasets], axis=0)
+    return merged
+
+
+def build_wrapped_env(env_name, start_mode="cycle", start_noise_scale=0.1, goal_noise_scale=0):
+    base_env = gym.make(env_name)
+    return FixedResetWrapper(
+        base_env,
+        env_name=env_name,
+        start_mode=start_mode,
+        start_noise_scale=start_noise_scale,
+        goal_noise_scale=goal_noise_scale,
+    )
+
+
+def get_env_goal(env):
+    if "maze2d" in env.spec.id:
+        if hasattr(env, "get_target"):
+            return np.array(env.get_target()[:2], dtype=np.float32)
+        return np.array(getattr(env, "_target", np.zeros(2))[:2], dtype=np.float32)
+
+    base_env = env.unwrapped
+    if hasattr(base_env, "target_goal") and base_env.target_goal is not None:
+        return np.array(base_env.target_goal[:2], dtype=np.float32)
+    if hasattr(base_env, "_goal") and base_env._goal is not None:
+        return np.array(base_env._goal[:2], dtype=np.float32)
+    if hasattr(base_env, "get_target"):
+        return np.array(base_env.get_target()[:2], dtype=np.float32)
+    return np.array(getattr(base_env, "_target", np.zeros(2))[:2], dtype=np.float32)
+
+
+def get_env_start_xy(env):
+    base_env = env.unwrapped
+    if hasattr(base_env, "get_xy"):
+        return np.array(base_env.get_xy()[:2], dtype=np.float32)
+    if hasattr(base_env, "sim") and hasattr(base_env.sim, "data"):
+        return np.array(base_env.sim.data.qpos[:2], dtype=np.float32)
+    if hasattr(base_env, "physics") and hasattr(base_env.physics, "data"):
+        return np.array(base_env.physics.data.qpos[:2], dtype=np.float32)
+    return np.array([np.nan, np.nan], dtype=np.float32)
+
+
 def eval_policy(policy, env, replay_buffer, eval_episodes=10, plot=False):
     avg_reward = 0.
     plt.clf()
     start_states = []
     color_list = cm.rainbow(np.linspace(0, 1, eval_episodes+2))
-    env = gym.make(args.env_name)
+    env = build_wrapped_env(args.env_name)
 
     for i in range(eval_episodes):
         state, done = env.reset(), False
+        start_xy = get_env_start_xy(env)
+        goal_xy = get_env_goal(env)
+        print(
+            f"eval episode {i}: start={start_xy.tolist()}, "
+            f"goal={goal_xy.tolist()}, start_id={getattr(env, 'last_reset_start_idx', None)}"
+        )
         states_list = []
         q1_list, q2_list = [], []
         ep_reward = []
@@ -74,6 +165,7 @@ def eval_policy(policy, env, replay_buffer, eval_episodes=10, plot=False):
 
     avg_reward /= eval_episodes
     normalized_score = env.get_normalized_score(avg_reward)
+    env.close()
 
     info = {'AverageReturn': avg_reward, 'NormReturn': normalized_score}
     print ("---------------------------------------")
@@ -84,16 +176,16 @@ def eval_policy(policy, env, replay_buffer, eval_episodes=10, plot=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Additional parameters
-    parser.add_argument("--ExpID", default=7, type=int)              # Experiment ID
+    parser.add_argument("--ExpID", default=427, type=int)              # Experiment ID
     parser.add_argument('--log_dir', default='./results/', type=str)    # Logging directory
     parser.add_argument("--load_model", default=0, type=int)          # Load model and optimizer parameters
     parser.add_argument("--save_model", default=True, type=bool)        # Save model and optimizer parameters
     parser.add_argument("--save_freq", default=50, type=int)           # How often it saves the model (epoch)
-    parser.add_argument("--env_name", default="maze2d-large-v1")     # OpenAI gym environment name
-    parser.add_argument("--dataset_path", default="", type=str)      # Optional custom dataset path (.hdf5)
+    parser.add_argument("--env_name", default="antmaze-large-diverse-v2")     # OpenAI gym environment name
+    parser.add_argument("--dataset_path", nargs="+", default=None, type=str)      # Optional custom dataset path(s) (.hdf5)
     parser.add_argument("--seed", default=789, type=int)                  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--eval_freq", default=10000, type=int)           # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=1e6, type=int)      # Max time steps to run environment for
+    parser.add_argument("--max_timesteps", default=2e6, type=int)      # Max time steps to run environment for
     parser.add_argument('--batch_size', default=512, type=int)
     parser.add_argument('--vae_lr', default=2e-4, type=float)	        # action policy (VAE) learning rate
     parser.add_argument('--actor_lr', default=2e-4, type=float)	        # latent policy learning rate
@@ -109,6 +201,12 @@ if __name__ == "__main__":
 
     parser.add_argument('--plot', action='store_true')
     parser.add_argument('--device', default='cuda', type=str)
+    parser.add_argument(
+        "--terminal_log_path",
+        default="",
+        type=str,
+        help="Optional file path to save terminal print output.",
+    )
 
     args = parser.parse_args()
 
@@ -122,12 +220,21 @@ if __name__ == "__main__":
         print('exp file already exist')
         # raise AssertionError
 
+    terminal_log_file = None
+    if args.terminal_log_path:
+        terminal_log_path = os.path.abspath(args.terminal_log_path)
+        os.makedirs(os.path.dirname(terminal_log_path), exist_ok=True)
+        terminal_log_file = open(terminal_log_path, "a", buffering=1)
+        sys.stdout = TeeStream(sys.stdout, terminal_log_file)
+        sys.stderr = TeeStream(sys.stderr, terminal_log_file)
+        print(f"terminal output is being saved to: {terminal_log_path}")
+
     variant = vars(args)
     variant.update(node=os.uname()[1])
     setup_logger(os.path.basename(folder_name), variant=variant, log_dir=folder_name)
 
     # Setup Environment
-    env = gym.make(args.env_name)
+    env = build_wrapped_env(args.env_name)
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
     max_action = float(env.action_space.high[0])
@@ -140,11 +247,15 @@ if __name__ == "__main__":
 
     # Load Dataset
     if args.dataset_path:
-        if not os.path.isfile(args.dataset_path):
-            raise FileNotFoundError(f"Dataset file not found: {args.dataset_path}")
-        print(f"loading custom dataset from: {args.dataset_path}")
-        raw_dataset = load_hdf5_dataset(args.dataset_path)
-        dataset = d4rl.qlearning_dataset(env, dataset=raw_dataset)
+        qlearning_datasets = []
+        for dataset_path in args.dataset_path:
+            if not os.path.isfile(dataset_path):
+                raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
+            print(f"loading custom dataset from: {dataset_path}")
+            raw_dataset = load_hdf5_dataset(dataset_path)
+            qlearning_datasets.append(to_qlearning_dataset(env, raw_dataset))
+        dataset = merge_qlearning_datasets(qlearning_datasets)
+        print(f"merged {len(qlearning_datasets)} dataset(s), total size: {dataset['observations'].shape[0]}")
     else:
         dataset = d4rl.qlearning_dataset(env)  # Load d4rl dataset
     if 'antmaze' in args.env_name:
@@ -222,3 +333,5 @@ if __name__ == "__main__":
 
     policy.save('model', folder_name)
 
+    if terminal_log_file is not None:
+        terminal_log_file.close()

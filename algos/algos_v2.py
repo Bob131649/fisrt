@@ -1,29 +1,71 @@
 """
 Based on https://github.com/sfujim/BCQ
 """
+import copy
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import copy
+
 from networks.net_v2 import Actor, Critic, ActorVAE
+
+
+class FrozenPolicy(nn.Module):
+    def __init__(
+        self,
+        state_dim,
+        action_dim,
+        latent_dim,
+        max_latent_action,
+        device,
+        policy_mode="lapo",
+    ):
+        super().__init__()
+        self.device = torch.device(device)
+        self.policy_mode = policy_mode
+        self.actor_vae = ActorVAE(
+            state_dim, action_dim, latent_dim, max_latent_action, self.device
+        ).to(self.device)
+        self.actor = None
+        if policy_mode == "lapo":
+            self.actor = Actor(state_dim, latent_dim, max_latent_action).to(self.device)
+
+    def load(self, filename, directory):
+        self.actor_vae.load_state_dict(
+            torch.load(f"{directory}/{filename}_actor_vae.pth", map_location=self.device)
+        )
+        if self.actor is not None:
+            self.actor.load_state_dict(
+                torch.load(f"{directory}/{filename}_actor.pth", map_location=self.device)
+            )
+
+        self.eval()
+        for param in self.parameters():
+            param.requires_grad_(False)
+
+    def select_action_tensor(self, state):
+        if self.actor is None:
+            latent_action = None
+        else:
+            latent_action = self.actor(state)
+        return self.actor_vae.decode(state, z=latent_action)
+
+    def select_action(self, state):
+        with torch.no_grad():
+            state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
+            action = self.select_action_tensor(state)
+        return action.cpu().data.numpy().flatten(), 0.0, 0.0
+
 
 class Latent(nn.Module):
     def __init__(self, state_dim, action_dim, latent_dim, min_v, max_v, 
                  device, discount=0.99, tau=0.001, vae_lr=1e-4, actor_lr=1e-4, critic_lr=1e-4, 
-                 max_latent_action=3, expectile=0.9, kl_beta=0.5, doubleq_min=0.8):
+                 max_latent_action=3, expectile=0.9, kl_beta=0.5, doubleq_min=0.8,
+                 target_policy_dir="", target_policy_name="model", target_policy_mode="lapo"):
         super(Latent, self).__init__()
 
         self.device = torch.device(device)
-        self.actor_vae = ActorVAE(state_dim, action_dim, latent_dim, max_latent_action, self.device).to(self.device)
-        
-        self.actor_vae_target = copy.deepcopy(self.actor_vae)
-        self.actorvae_optimizer = torch.optim.Adam(self.actor_vae.parameters(), lr=vae_lr, weight_decay=1e-5)
-
-        self.actor = Actor(state_dim, latent_dim, max_latent_action).to(self.device)
-        self.actor_target = copy.deepcopy(self.actor)
-        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr, weight_decay=1e-5)
-
         self.critic = Critic(state_dim, action_dim).to(self.device)
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr, weight_decay=1e-5)
@@ -44,8 +86,41 @@ class Latent(nn.Module):
         self.g_clip = 0.5
 
         self.min_v, self.max_v = min_v, max_v 
+        self.ope_mode = bool(target_policy_dir)
+
+        if self.ope_mode:
+            if target_policy_mode == "vae":
+                target_policy_mode = "vae_bc"
+            if target_policy_mode not in ("lapo", "vae_bc"):
+                raise ValueError(f"Unsupported target_policy_mode: {target_policy_mode}")
+            self.target_policy = FrozenPolicy(
+                state_dim=state_dim,
+                action_dim=action_dim,
+                latent_dim=latent_dim,
+                max_latent_action=max_latent_action,
+                device=device,
+                policy_mode="lapo" if target_policy_mode == "lapo" else "vae_bc",
+            )
+            self.target_policy.load(target_policy_name, target_policy_dir)
+            self.actor_vae = None
+            self.actor_vae_target = None
+            self.actorvae_optimizer = None
+            self.actor = None
+            self.actor_target = None
+            self.actor_optimizer = None
+        else:
+            self.target_policy = None
+            self.actor_vae = ActorVAE(state_dim, action_dim, latent_dim, max_latent_action, self.device).to(self.device)
+            self.actor_vae_target = copy.deepcopy(self.actor_vae)
+            self.actorvae_optimizer = torch.optim.Adam(self.actor_vae.parameters(), lr=vae_lr, weight_decay=1e-5)
+
+            self.actor = Actor(state_dim, latent_dim, max_latent_action).to(self.device)
+            self.actor_target = copy.deepcopy(self.actor)
+            self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr, weight_decay=1e-5)
 
     def copy_bn_param(self):
+        if self.ope_mode:
+            return None
         source_state = self.actor_vae.state_dict()
         for name, module in self.actor_vae_target.named_modules():
             if isinstance(module, nn.BatchNorm1d):
@@ -55,10 +130,11 @@ class Latent(nn.Module):
     def select_action(self, state):
         with torch.no_grad():
             state = torch.FloatTensor(state.reshape(1, -1)).to(self.device)
-            latent_a = self.actor(state)
-            #latent_a = None
-
-            action = self.actor_vae.decode(state, z=latent_a)
+            if self.ope_mode:
+                action = self.target_policy.select_action_tensor(state)
+            else:
+                latent_a = self.actor(state)
+                action = self.actor_vae.decode(state, z=latent_a)
             q1, q2 = self.critic(state, action)
             # v = self.critic.v(state)
             
@@ -90,12 +166,43 @@ class Latent(nn.Module):
         q = torch.min(q1, q2)*self.doubleq_min + torch.max(q1, q2)*(1-self.doubleq_min)
         return q
 
+    def estimate_value(self, states):
+        if not self.ope_mode:
+            raise RuntimeError("estimate_value is only available in OPE mode.")
+        with torch.no_grad():
+            actions = self.target_policy.select_action_tensor(states)
+            q1, q2 = self.critic(states, actions)
+            return self.get_min_q(q1, q2)
+
     def train_step(self, batch, iter_id, ):
         state = batch['state'].to(self.device).float()
         action = batch['action'].to(self.device).float()
         next_state = batch['next_state'].to(self.device).float()
         reward = batch['reward'].to(self.device).view(-1,1).float()
         not_done = batch['not_done'].to(self.device).view(-1,1)
+
+        if self.ope_mode:
+            with torch.no_grad():
+                next_action = self.target_policy.select_action_tensor(next_state)
+                target_q1, target_q2 = self.critic_target(next_state, next_action)
+                next_target_q = self.get_min_q(target_q1, target_q2)
+                target_q = reward + not_done * self.discount * next_target_q.clamp(
+                    self.min_v, self.max_v
+                )
+
+            current_q1, current_q2 = self.critic(state, action)
+            critic_loss = F.mse_loss(current_q1, target_q) + F.mse_loss(current_q2, target_q)
+
+            self.critic_optimizer.zero_grad()
+            critic_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=self.g_clip)
+            self.critic_optimizer.step()
+
+            for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
+                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+
+            sample_w = np.ones(state.shape[0], dtype=np.float32)
+            return sample_w, None, critic_loss.item(), None, None
 
         with torch.no_grad():
             next_target_v = self.get_pi_q(next_state, self.actor_target, self.critic_target, 
@@ -115,7 +222,6 @@ class Latent(nn.Module):
         
         loss_rc, loss_kl, a_loss, loss_std, loss_mean= None, None, None, None, None
 
-# update vae
         if iter_id % 1 == 0:
             with torch.no_grad():
                 q1_a, q2_a = self.critic(state, action)
@@ -137,7 +243,7 @@ class Latent(nn.Module):
             free_bits_tensor = torch.tensor(free_bits, device=kl_per_dim.device)
             kl_freebits = torch.maximum(kl_per_dim, free_bits_tensor)
             kld_loss = kl_freebits.sum(dim=1).view(-1, 1)
-            actor_vae_loss = (recon_loss + self.kl_beta * kld_loss)*weight.view(-1,1)
+            actor_vae_loss = recon_loss + self.kl_beta * kld_loss
 
             actor_vae_loss = actor_vae_loss.mean()
             self.actorvae_optimizer.zero_grad()
@@ -146,11 +252,10 @@ class Latent(nn.Module):
             self.actorvae_optimizer.step()
 
             # Update Target Networks
-            loss_rc = (recons_loss_ori*weight.view(-1,1)).mean().item()
-            loss_kl = (kld_loss*weight.view(-1,1)).mean().item()
+            loss_rc = recons_loss_ori.mean().item()
+            loss_kl = kld_loss.mean().item()
             a_loss = q_pi.mean().item()
 
-#update actor
         if iter_id % 2 == 0:
             # train latent policy 
             latent_actor_action = self.actor(state)
@@ -185,6 +290,9 @@ class Latent(nn.Module):
         torch.save(self.critic_optimizer.state_dict(), '%s/%s_critic_optimizer.pth' % (directory, filename))
         torch.save(self.critic_target.state_dict(), '%s/%s_critic_target.pth' % (directory, filename))
 
+        if self.ope_mode:
+            return
+
         torch.save(self.actor.state_dict(), '%s/%s_actor.pth' % (directory, filename))
         torch.save(self.actor_optimizer.state_dict(), '%s/%s_actor_optimizer.pth' % (directory, filename))
         torch.save(self.actor_target.state_dict(), '%s/%s_actor_target.pth' % (directory, filename))
@@ -194,14 +302,17 @@ class Latent(nn.Module):
         torch.save(self.actor_vae_target.state_dict(), '%s/%s_actor_vae_target.pth' % (directory, filename))
 
     def load(self, filename, directory):
-        self.critic.load_state_dict(torch.load('%s/%s_critic.pth' % (directory, filename)))
-        self.critic_optimizer.load_state_dict(torch.load('%s/%s_critic_optimizer.pth' % (directory, filename)))
-        self.critic_target.load_state_dict(torch.load('%s/%s_critic_target.pth' % (directory, filename)))
+        self.critic.load_state_dict(torch.load('%s/%s_critic.pth' % (directory, filename), map_location=self.device))
+        self.critic_optimizer.load_state_dict(torch.load('%s/%s_critic_optimizer.pth' % (directory, filename), map_location=self.device))
+        self.critic_target.load_state_dict(torch.load('%s/%s_critic_target.pth' % (directory, filename), map_location=self.device))
 
-        self.actor.load_state_dict(torch.load('%s/%s_actor.pth' % (directory, filename)))
-        self.actor_optimizer.load_state_dict(torch.load('%s/%s_actor_optimizer.pth' % (directory, filename)))
-        self.actor_target.load_state_dict(torch.load('%s/%s_actor_target.pth' % (directory, filename)))
+        if self.ope_mode:
+            return
 
-        self.actor_vae.load_state_dict(torch.load('%s/%s_actor_vae.pth' % (directory, filename)))
-        self.actorvae_optimizer.load_state_dict(torch.load('%s/%s_actor_vae_optimizer.pth' % (directory, filename)))
-        self.actor_vae_target.load_state_dict(torch.load('%s/%s_actor_vae_target.pth' % (directory, filename)))
+        self.actor.load_state_dict(torch.load('%s/%s_actor.pth' % (directory, filename), map_location=self.device))
+        self.actor_optimizer.load_state_dict(torch.load('%s/%s_actor_optimizer.pth' % (directory, filename), map_location=self.device))
+        self.actor_target.load_state_dict(torch.load('%s/%s_actor_target.pth' % (directory, filename), map_location=self.device))
+
+        self.actor_vae.load_state_dict(torch.load('%s/%s_actor_vae.pth' % (directory, filename), map_location=self.device))
+        self.actorvae_optimizer.load_state_dict(torch.load('%s/%s_actor_vae_optimizer.pth' % (directory, filename), map_location=self.device))
+        self.actor_vae_target.load_state_dict(torch.load('%s/%s_actor_vae_target.pth' % (directory, filename), map_location=self.device))
