@@ -27,10 +27,10 @@ SUCCESS_HOLD_RADIUS = 0.5
 # Any successful episode with episode_steps >= threshold will be discarded.
 # Use the stable global start_id mapping from FixedResetWrapper presets.
 START_STEP_THRESHOLDS = {
-    0: 420,
-    1: 430,
-    2: 280,
-    3: 250,
+    # 0: 420,
+    # 1: 430,
+    # 2: 280,
+    # 3: 250,
 }
 
 

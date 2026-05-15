@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from networks.net_v2 import Actor, Critic, ActorVAE
+from networks.net_v2 import Actor, Critic, ActorVAE, OPEValue
 
 
 class FrozenPolicy(nn.Module):
@@ -102,6 +102,9 @@ class Latent(nn.Module):
                 policy_mode="lapo" if target_policy_mode == "lapo" else "vae_bc",
             )
             self.target_policy.load(target_policy_name, target_policy_dir)
+            self.value = OPEValue(state_dim).to(self.device)
+            self.value_target = copy.deepcopy(self.value)
+            self.value_optimizer = torch.optim.Adam(self.value.parameters(), lr=critic_lr, weight_decay=1e-5)
             self.actor_vae = None
             self.actor_vae_target = None
             self.actorvae_optimizer = None
@@ -110,6 +113,9 @@ class Latent(nn.Module):
             self.actor_optimizer = None
         else:
             self.target_policy = None
+            self.value = None
+            self.value_target = None
+            self.value_optimizer = None
             self.actor_vae = ActorVAE(state_dim, action_dim, latent_dim, max_latent_action, self.device).to(self.device)
             self.actor_vae_target = copy.deepcopy(self.actor_vae)
             self.actorvae_optimizer = torch.optim.Adam(self.actor_vae.parameters(), lr=vae_lr, weight_decay=1e-5)
@@ -170,9 +176,7 @@ class Latent(nn.Module):
         if not self.ope_mode:
             raise RuntimeError("estimate_value is only available in OPE mode.")
         with torch.no_grad():
-            actions = self.target_policy.select_action_tensor(states)
-            q1, q2 = self.critic(states, actions)
-            return self.get_min_q(q1, q2)
+            return self.value(states)
 
     def train_step(self, batch, iter_id, ):
         state = batch['state'].to(self.device).float()
@@ -183,10 +187,8 @@ class Latent(nn.Module):
 
         if self.ope_mode:
             with torch.no_grad():
-                next_action = self.target_policy.select_action_tensor(next_state)
-                target_q1, target_q2 = self.critic_target(next_state, next_action)
-                next_target_q = self.get_min_q(target_q1, target_q2)
-                target_q = reward + not_done * self.discount * next_target_q.clamp(
+                next_target_v = self.value_target(next_state)
+                target_q = reward + not_done * self.discount * next_target_v.clamp(
                     self.min_v, self.max_v
                 )
 
@@ -198,11 +200,26 @@ class Latent(nn.Module):
             torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=self.g_clip)
             self.critic_optimizer.step()
 
+            policy_action = self.target_policy.select_action_tensor(state)
+            with torch.no_grad():
+                q1_pi, q2_pi = self.critic(state, policy_action)
+                q_pi = self.get_min_q(q1_pi, q2_pi)
+
+            current_v = self.value(state)
+            value_loss = F.mse_loss(current_v, q_pi)
+
+            self.value_optimizer.zero_grad()
+            value_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.value.parameters(), max_norm=self.g_clip)
+            self.value_optimizer.step()
+
             for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
+                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+            for param, target_param in zip(self.value.parameters(), self.value_target.parameters()):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
             sample_w = np.ones(state.shape[0], dtype=np.float32)
-            return sample_w, None, critic_loss.item(), None, None
+            return sample_w, current_v.mean().item(), critic_loss.item(), value_loss.item(), None
 
         with torch.no_grad():
             next_target_v = self.get_pi_q(next_state, self.actor_target, self.critic_target, 
@@ -291,6 +308,9 @@ class Latent(nn.Module):
         torch.save(self.critic_target.state_dict(), '%s/%s_critic_target.pth' % (directory, filename))
 
         if self.ope_mode:
+            torch.save(self.value.state_dict(), '%s/%s_value.pth' % (directory, filename))
+            torch.save(self.value_optimizer.state_dict(), '%s/%s_value_optimizer.pth' % (directory, filename))
+            torch.save(self.value_target.state_dict(), '%s/%s_value_target.pth' % (directory, filename))
             return
 
         torch.save(self.actor.state_dict(), '%s/%s_actor.pth' % (directory, filename))
@@ -307,6 +327,9 @@ class Latent(nn.Module):
         self.critic_target.load_state_dict(torch.load('%s/%s_critic_target.pth' % (directory, filename), map_location=self.device))
 
         if self.ope_mode:
+            self.value.load_state_dict(torch.load('%s/%s_value.pth' % (directory, filename), map_location=self.device))
+            self.value_optimizer.load_state_dict(torch.load('%s/%s_value_optimizer.pth' % (directory, filename), map_location=self.device))
+            self.value_target.load_state_dict(torch.load('%s/%s_value_target.pth' % (directory, filename), map_location=self.device))
             return
 
         self.actor.load_state_dict(torch.load('%s/%s_actor.pth' % (directory, filename), map_location=self.device))
