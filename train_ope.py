@@ -2,16 +2,12 @@
 
 import argparse, os, sys, torch, h5py
 import numpy as np
-import matplotlib
-matplotlib.use("TkAgg")  # needs Tk installed
-import matplotlib.pyplot as plt
-from matplotlib import cm
 import gym, d4rl
 import algos.algos_v2 as algos
+from algos.ope import build_wrapped_env, estimate_ope, mc_eval_value_alignment
 from tqdm.auto import tqdm
 from logger import logger, setup_logger
 from dataset.d4rl_dataset import D4rlDataset
-from fixed_reset_wrapper import FixedResetWrapper
 from torch.utils.data import DataLoader
 
 
@@ -59,125 +55,20 @@ def build_qlearning_dataset(env, dataset_path=""):
     return d4rl.qlearning_dataset(env)
 
 
-def build_wrapped_env(env_name, start_mode="cycle", start_noise_scale=0.1, goal_noise_scale=0):
-    base_env = gym.make(env_name)
-    return FixedResetWrapper(
-        base_env,
-        env_name=env_name,
-        start_mode=start_mode,
-        start_noise_scale=start_noise_scale,
-        goal_noise_scale=goal_noise_scale,
-    )
-
-
-def get_env_goal(env):
-    if "maze2d" in env.spec.id:
-        if hasattr(env, "get_target"):
-            return np.array(env.get_target()[:2], dtype=np.float32)
-        return np.array(getattr(env, "_target", np.zeros(2))[:2], dtype=np.float32)
-
-    base_env = env.unwrapped
-    if hasattr(base_env, "target_goal") and base_env.target_goal is not None:
-        return np.array(base_env.target_goal[:2], dtype=np.float32)
-    if hasattr(base_env, "_goal") and base_env._goal is not None:
-        return np.array(base_env._goal[:2], dtype=np.float32)
-    if hasattr(base_env, "get_target"):
-        return np.array(base_env.get_target()[:2], dtype=np.float32)
-    return np.array(getattr(base_env, "_target", np.zeros(2))[:2], dtype=np.float32)
-
-
-def get_env_start_xy(env):
-    base_env = env.unwrapped
-    if hasattr(base_env, "get_xy"):
-        return np.array(base_env.get_xy()[:2], dtype=np.float32)
-    if hasattr(base_env, "sim") and hasattr(base_env.sim, "data"):
-        return np.array(base_env.sim.data.qpos[:2], dtype=np.float32)
-    if hasattr(base_env, "physics") and hasattr(base_env.physics, "data"):
-        return np.array(base_env.physics.data.qpos[:2], dtype=np.float32)
-    return np.array([np.nan, np.nan], dtype=np.float32)
-
-
-def estimate_ope(policy, env, replay_buffer, eval_episodes=50):
-    states = []
-    for _ in range(eval_episodes):
-        state = env.reset()
-        states.append(replay_buffer.normalize_state(np.array(state)))
-    states = torch.FloatTensor(np.array(states)).to(policy.device)
-    return policy.estimate_value(states).mean().item()
-
-
-def eval_target_policy(policy, replay_buffer, env_name, eval_episodes=10, plot=False, figure_path=None):
-    avg_reward = 0.0
-    start_states = []
-    color_list = cm.rainbow(np.linspace(0, 1, eval_episodes + 2))
-    env = build_wrapped_env(env_name)
-
-    if plot:
-        plt.clf()
-
-    for i in range(eval_episodes):
-        state, done = env.reset(), False
-        start_xy = get_env_start_xy(env)
-        goal_xy = get_env_goal(env)
-        print(
-            f"ope eval episode {i}: start={start_xy.tolist()}, "
-            f"goal={goal_xy.tolist()}, start_id={getattr(env, 'last_reset_start_idx', None)}"
-        )
-        states_list = []
-        q1_list, q2_list = [], []
-        ep_reward = []
-        start_states.append(state)
-
-        while not done:
-            norm_state = replay_buffer.normalize_state(np.array(state))
-            action, q1, q2 = policy.select_action(norm_state)
-            q1_list.append(q1)
-            q2_list.append(q2)
-            env_action = replay_buffer.unnormalize_action(action)
-            state, reward, done, _ = env.step(env_action)
-            avg_reward += reward
-            states_list.append(state)
-            ep_reward.append(reward)
-
-        print('   ---', np.mean(ep_reward), q1_list[0], q1_list[-1], np.mean(q1_list))
-        print('---', state[0], state[1], len(states_list))
-
-        if plot and states_list:
-            states_list = np.array(states_list)
-            plt.scatter(states_list[:, 0], states_list[:, 1], color=color_list[i], alpha=0.1)
-
-    if plot and start_states:
-        start_states = np.array(start_states)
-        plt.scatter(start_states[:, 0], start_states[:, 1], color='red')
-        if figure_path is None:
-            figure_path = './ope_eval_fig'
-        plt.savefig(figure_path)
-
-    avg_reward /= eval_episodes
-    normalized_score = env.get_normalized_score(avg_reward)
-    env.close()
-
-    info = {'AverageReturn': avg_reward, 'NormReturn': normalized_score}
-    print("---------------------------------------")
-    print(f"OPE rollout evaluation over {eval_episodes} episodes: {avg_reward:.3f}, {normalized_score:.3f}")
-    print("---------------------------------------")
-    return info
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ExpID", default=427, type=int)
     parser.add_argument('--log_dir', default='./results/', type=str)
     parser.add_argument("--load_model", default=0, type=int)
     parser.add_argument("--save_model", default=True, type=bool)
-    parser.add_argument("--save_freq", default=50, type=int)
+    parser.add_argument("--save_freq", default=1, type=int)
     parser.add_argument("--env_name", default="maze2d-large-v1")
     parser.add_argument("--dataset_path", default="", type=str)
     parser.add_argument("--ope_dataset_path", default="", type=str)
     parser.add_argument("--target_policy_dataset_path", default="", type=str)
     parser.add_argument("--seed", default=789, type=int)
     parser.add_argument("--eval_freq", default=10000, type=int)
-    parser.add_argument("--max_timesteps", default=2e5, type=int)
+    parser.add_argument("--max_timesteps", default=1e5, type=int)
     parser.add_argument('--batch_size', default=512, type=int)
     parser.add_argument('--critic_lr', default=2e-4, type=float)
     parser.add_argument('--tau', default=0.005, type=float)
@@ -186,6 +77,8 @@ if __name__ == "__main__":
     parser.add_argument('--doubleq_min', default=1.0, type=float)
     parser.add_argument('--device', default='cuda', type=str)
     parser.add_argument('--plot', action='store_true')
+    parser.add_argument('--mc_eval_episodes_per_start', default=5, type=int)
+    parser.add_argument('--mc_eval_max_episode_steps', default=None, type=int)
     parser.add_argument("--target_policy_dir", required=True, type=str)
     parser.add_argument("--target_policy_name", default="model", type=str)
     parser.add_argument(
@@ -319,15 +212,18 @@ if __name__ == "__main__":
             logger.record_tabular('Training Epochs', int(epoch_idx))
             policy.eval()
             logger.record_tabular('OPE_Estimate', estimate_ope(policy, env, d4rl_dataset))
-            rollout_info = eval_target_policy(
+            mc_info = mc_eval_value_alignment(
                 policy,
                 d4rl_dataset,
                 args.env_name,
+                discount=args.discount,
+                eval_episodes_per_start=args.mc_eval_episodes_per_start,
+                max_episode_steps=args.mc_eval_max_episode_steps,
                 plot=args.plot,
                 figure_path=os.path.join(folder_name, f"ope_eval_fig_epoch{epoch_idx:04d}.png"),
             )
             policy.train()
-            for k, v in rollout_info.items():
+            for k, v in mc_info.items():
                 logger.record_tabular(k, v)
             logger.record_tabular('L_Crit', np.mean(crit_list))
             logger.record_tabular('L_Value', np.mean(value_list) if value_list else 0.0)
