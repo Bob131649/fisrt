@@ -1,0 +1,450 @@
+2026-05-14 09:24:00.606007 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:24:00.606479 CST | [antmaze-large-diverse-v2] Training Epochs  0
+2026-05-14 09:24:00.606775 CST | [antmaze-large-diverse-v2] AverageReturn    0.3
+2026-05-14 09:24:00.607029 CST | [antmaze-large-diverse-v2] NormReturn       0.3
+2026-05-14 09:24:00.607305 CST | [antmaze-large-diverse-v2] L_Act            0.0221003
+2026-05-14 09:24:00.607368 CST | [antmaze-large-diverse-v2] L_Crit           4.8669
+2026-05-14 09:24:00.607460 CST | [antmaze-large-diverse-v2] Weight           0.5
+2026-05-14 09:24:00.607549 CST | [antmaze-large-diverse-v2] kl               1
+2026-05-14 09:24:00.607639 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:25:51.136474 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:25:51.136566 CST | [antmaze-large-diverse-v2] Training Epochs  1
+2026-05-14 09:25:51.136595 CST | [antmaze-large-diverse-v2] AverageReturn    0.4
+2026-05-14 09:25:51.136621 CST | [antmaze-large-diverse-v2] NormReturn       0.4
+2026-05-14 09:25:51.136645 CST | [antmaze-large-diverse-v2] L_Act            0.00299153
+2026-05-14 09:25:51.136680 CST | [antmaze-large-diverse-v2] L_Crit           4.07815
+2026-05-14 09:25:51.136704 CST | [antmaze-large-diverse-v2] Weight           0.5
+2026-05-14 09:25:51.136727 CST | [antmaze-large-diverse-v2] kl               1
+2026-05-14 09:25:51.136751 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:27:42.684096 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:27:42.684196 CST | [antmaze-large-diverse-v2] Training Epochs  2
+2026-05-14 09:27:42.684228 CST | [antmaze-large-diverse-v2] AverageReturn    0.4
+2026-05-14 09:27:42.684254 CST | [antmaze-large-diverse-v2] NormReturn       0.4
+2026-05-14 09:27:42.684278 CST | [antmaze-large-diverse-v2] L_Act            0.00577593
+2026-05-14 09:27:42.684301 CST | [antmaze-large-diverse-v2] L_Crit           2.83635
+2026-05-14 09:27:42.684325 CST | [antmaze-large-diverse-v2] Weight           0.5
+2026-05-14 09:27:42.684349 CST | [antmaze-large-diverse-v2] kl               1
+2026-05-14 09:27:42.684372 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:29:34.073374 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:29:34.073492 CST | [antmaze-large-diverse-v2] Training Epochs  3
+2026-05-14 09:29:34.073521 CST | [antmaze-large-diverse-v2] AverageReturn    0.3
+2026-05-14 09:29:34.073546 CST | [antmaze-large-diverse-v2] NormReturn       0.3
+2026-05-14 09:29:34.073571 CST | [antmaze-large-diverse-v2] L_Act            0.0119695
+2026-05-14 09:29:34.073595 CST | [antmaze-large-diverse-v2] L_Crit           1.91165
+2026-05-14 09:29:34.073619 CST | [antmaze-large-diverse-v2] Weight           0.5
+2026-05-14 09:29:34.073643 CST | [antmaze-large-diverse-v2] kl               1
+2026-05-14 09:29:34.073666 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:31:24.038056 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:31:24.038143 CST | [antmaze-large-diverse-v2] Training Epochs  4
+2026-05-14 09:31:24.038172 CST | [antmaze-large-diverse-v2] AverageReturn    0.6
+2026-05-14 09:31:24.038196 CST | [antmaze-large-diverse-v2] NormReturn       0.6
+2026-05-14 09:31:24.038221 CST | [antmaze-large-diverse-v2] L_Act            0.0154066
+2026-05-14 09:31:24.038244 CST | [antmaze-large-diverse-v2] L_Crit           1.62125
+2026-05-14 09:31:24.038267 CST | [antmaze-large-diverse-v2] Weight           0.5
+2026-05-14 09:31:24.038291 CST | [antmaze-large-diverse-v2] kl               1
+2026-05-14 09:31:24.038314 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:33:12.787605 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:33:12.787693 CST | [antmaze-large-diverse-v2] Training Epochs  5
+2026-05-14 09:33:12.787727 CST | [antmaze-large-diverse-v2] AverageReturn    0.6
+2026-05-14 09:33:12.787752 CST | [antmaze-large-diverse-v2] NormReturn       0.6
+2026-05-14 09:33:12.787776 CST | [antmaze-large-diverse-v2] L_Act            0.0196069
+2026-05-14 09:33:12.787804 CST | [antmaze-large-diverse-v2] L_Crit           1.43323
+2026-05-14 09:33:12.787828 CST | [antmaze-large-diverse-v2] Weight           0.5
+2026-05-14 09:33:12.787852 CST | [antmaze-large-diverse-v2] kl               1
+2026-05-14 09:33:12.787877 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:34:59.843599 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:34:59.843683 CST | [antmaze-large-diverse-v2] Training Epochs  6
+2026-05-14 09:34:59.843712 CST | [antmaze-large-diverse-v2] AverageReturn    0.4
+2026-05-14 09:34:59.843736 CST | [antmaze-large-diverse-v2] NormReturn       0.4
+2026-05-14 09:34:59.843760 CST | [antmaze-large-diverse-v2] L_Act            0.0252127
+2026-05-14 09:34:59.843784 CST | [antmaze-large-diverse-v2] L_Crit           1.28465
+2026-05-14 09:34:59.843808 CST | [antmaze-large-diverse-v2] Weight           0.5
+2026-05-14 09:34:59.843832 CST | [antmaze-large-diverse-v2] kl               1
+2026-05-14 09:34:59.843855 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:36:40.987877 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:36:40.987998 CST | [antmaze-large-diverse-v2] Training Epochs  7
+2026-05-14 09:36:40.988027 CST | [antmaze-large-diverse-v2] AverageReturn    0.8
+2026-05-14 09:36:40.988052 CST | [antmaze-large-diverse-v2] NormReturn       0.8
+2026-05-14 09:36:40.988075 CST | [antmaze-large-diverse-v2] L_Act            0.0309574
+2026-05-14 09:36:40.988099 CST | [antmaze-large-diverse-v2] L_Crit           1.22909
+2026-05-14 09:36:40.988134 CST | [antmaze-large-diverse-v2] Weight           0.5
+2026-05-14 09:36:40.988158 CST | [antmaze-large-diverse-v2] kl               1
+2026-05-14 09:36:40.988181 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:38:22.973145 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:38:22.973244 CST | [antmaze-large-diverse-v2] Training Epochs  8
+2026-05-14 09:38:22.973273 CST | [antmaze-large-diverse-v2] AverageReturn    0.6
+2026-05-14 09:38:22.973297 CST | [antmaze-large-diverse-v2] NormReturn       0.6
+2026-05-14 09:38:22.973321 CST | [antmaze-large-diverse-v2] L_Act            0.0319032
+2026-05-14 09:38:22.973344 CST | [antmaze-large-diverse-v2] L_Crit           1.10317
+2026-05-14 09:38:22.973368 CST | [antmaze-large-diverse-v2] Weight           0.5
+2026-05-14 09:38:22.973391 CST | [antmaze-large-diverse-v2] kl               1
+2026-05-14 09:38:22.973415 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:40:10.279736 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:40:10.279829 CST | [antmaze-large-diverse-v2] Training Epochs  9
+2026-05-14 09:40:10.279858 CST | [antmaze-large-diverse-v2] AverageReturn    0.6
+2026-05-14 09:40:10.279884 CST | [antmaze-large-diverse-v2] NormReturn       0.6
+2026-05-14 09:40:10.279914 CST | [antmaze-large-diverse-v2] L_Act            0.0246665
+2026-05-14 09:40:10.279938 CST | [antmaze-large-diverse-v2] L_Crit           1.05829
+2026-05-14 09:40:10.279961 CST | [antmaze-large-diverse-v2] Weight           0.5
+2026-05-14 09:40:10.279984 CST | [antmaze-large-diverse-v2] kl               1
+2026-05-14 09:40:10.280008 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:41:57.875367 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:41:57.875458 CST | [antmaze-large-diverse-v2] Training Epochs  10
+2026-05-14 09:41:57.875493 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 09:41:57.875518 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 09:41:57.875542 CST | [antmaze-large-diverse-v2] L_Act             0.020456
+2026-05-14 09:41:57.875566 CST | [antmaze-large-diverse-v2] L_Crit            1.03213
+2026-05-14 09:41:57.875590 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:41:57.875614 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:41:57.875637 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:43:45.780730 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:43:45.780801 CST | [antmaze-large-diverse-v2] Training Epochs  11
+2026-05-14 09:43:45.780831 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 09:43:45.780856 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 09:43:45.780880 CST | [antmaze-large-diverse-v2] L_Act             0.0234486
+2026-05-14 09:43:45.780903 CST | [antmaze-large-diverse-v2] L_Crit            0.958095
+2026-05-14 09:43:45.780926 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:43:45.780950 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:43:45.780974 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:45:28.392748 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:45:28.392835 CST | [antmaze-large-diverse-v2] Training Epochs  12
+2026-05-14 09:45:28.392864 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 09:45:28.392889 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 09:45:28.392913 CST | [antmaze-large-diverse-v2] L_Act             0.0248375
+2026-05-14 09:45:28.392937 CST | [antmaze-large-diverse-v2] L_Crit            0.919163
+2026-05-14 09:45:28.392961 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:45:28.392985 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:45:28.393008 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:47:10.998695 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:47:10.998780 CST | [antmaze-large-diverse-v2] Training Epochs  13
+2026-05-14 09:47:10.998808 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 09:47:10.998831 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 09:47:10.998854 CST | [antmaze-large-diverse-v2] L_Act             0.0231378
+2026-05-14 09:47:10.998878 CST | [antmaze-large-diverse-v2] L_Crit            0.904923
+2026-05-14 09:47:10.998901 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:47:10.998925 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:47:10.998949 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:48:52.795909 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:48:52.795993 CST | [antmaze-large-diverse-v2] Training Epochs  14
+2026-05-14 09:48:52.796022 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 09:48:52.796047 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 09:48:52.796071 CST | [antmaze-large-diverse-v2] L_Act             0.0237991
+2026-05-14 09:48:52.796094 CST | [antmaze-large-diverse-v2] L_Crit            0.952799
+2026-05-14 09:48:52.796118 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:48:52.796142 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:48:52.796165 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:50:33.727896 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:50:33.728010 CST | [antmaze-large-diverse-v2] Training Epochs  15
+2026-05-14 09:50:33.728039 CST | [antmaze-large-diverse-v2] AverageReturn     0.8
+2026-05-14 09:50:33.728064 CST | [antmaze-large-diverse-v2] NormReturn        0.8
+2026-05-14 09:50:33.728097 CST | [antmaze-large-diverse-v2] L_Act             0.0233174
+2026-05-14 09:50:33.728121 CST | [antmaze-large-diverse-v2] L_Crit            0.892048
+2026-05-14 09:50:33.728144 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:50:33.728168 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:50:33.728191 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:52:15.227775 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:52:15.227859 CST | [antmaze-large-diverse-v2] Training Epochs  16
+2026-05-14 09:52:15.227887 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 09:52:15.227917 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 09:52:15.227944 CST | [antmaze-large-diverse-v2] L_Act             0.0231529
+2026-05-14 09:52:15.227968 CST | [antmaze-large-diverse-v2] L_Crit            0.804939
+2026-05-14 09:52:15.227991 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:52:15.228015 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:52:15.228038 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:53:56.865265 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:53:56.865350 CST | [antmaze-large-diverse-v2] Training Epochs  17
+2026-05-14 09:53:56.865380 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 09:53:56.865406 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 09:53:56.865430 CST | [antmaze-large-diverse-v2] L_Act             0.0229232
+2026-05-14 09:53:56.865453 CST | [antmaze-large-diverse-v2] L_Crit            0.853353
+2026-05-14 09:53:56.865477 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:53:56.865501 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:53:56.865526 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:55:38.319649 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:55:38.319720 CST | [antmaze-large-diverse-v2] Training Epochs  18
+2026-05-14 09:55:38.319747 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 09:55:38.319770 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 09:55:38.319793 CST | [antmaze-large-diverse-v2] L_Act             0.0254942
+2026-05-14 09:55:38.319815 CST | [antmaze-large-diverse-v2] L_Crit            0.860155
+2026-05-14 09:55:38.319838 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:55:38.319860 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:55:38.319884 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:57:20.986278 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:57:20.986365 CST | [antmaze-large-diverse-v2] Training Epochs  19
+2026-05-14 09:57:20.986413 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 09:57:20.986442 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 09:57:20.986466 CST | [antmaze-large-diverse-v2] L_Act             0.026488
+2026-05-14 09:57:20.986490 CST | [antmaze-large-diverse-v2] L_Crit            0.770896
+2026-05-14 09:57:20.986513 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:57:20.986537 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:57:20.986561 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 09:59:02.635806 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 09:59:02.635890 CST | [antmaze-large-diverse-v2] Training Epochs  20
+2026-05-14 09:59:02.635922 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 09:59:02.635947 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 09:59:02.635970 CST | [antmaze-large-diverse-v2] L_Act             0.0258179
+2026-05-14 09:59:02.635994 CST | [antmaze-large-diverse-v2] L_Crit            0.813869
+2026-05-14 09:59:02.636026 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 09:59:02.636050 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 09:59:02.636074 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:00:46.683774 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 10:00:46.683862 CST | [antmaze-large-diverse-v2] Training Epochs  21
+2026-05-14 10:00:46.683891 CST | [antmaze-large-diverse-v2] AverageReturn     0.5
+2026-05-14 10:00:46.683920 CST | [antmaze-large-diverse-v2] NormReturn        0.5
+2026-05-14 10:00:46.683944 CST | [antmaze-large-diverse-v2] L_Act             0.026446
+2026-05-14 10:00:46.683969 CST | [antmaze-large-diverse-v2] L_Crit            0.792238
+2026-05-14 10:00:46.683993 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:00:46.684016 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:00:46.684042 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 10:02:28.368606 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:02:28.368693 CST | [antmaze-large-diverse-v2] Training Epochs  22
+2026-05-14 10:02:28.368743 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:02:28.368768 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:02:28.368791 CST | [antmaze-large-diverse-v2] L_Act             0.0259396
+2026-05-14 10:02:28.368825 CST | [antmaze-large-diverse-v2] L_Crit            0.730781
+2026-05-14 10:02:28.368851 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:02:28.368875 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:02:28.368898 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:04:09.181301 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:04:09.181380 CST | [antmaze-large-diverse-v2] Training Epochs  23
+2026-05-14 10:04:09.181418 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:04:09.181441 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:04:09.181464 CST | [antmaze-large-diverse-v2] L_Act             0.0289303
+2026-05-14 10:04:09.181486 CST | [antmaze-large-diverse-v2] L_Crit            0.778612
+2026-05-14 10:04:09.181508 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:04:09.181531 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:04:09.181555 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:05:51.293743 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:05:51.293824 CST | [antmaze-large-diverse-v2] Training Epochs  24
+2026-05-14 10:05:51.293864 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 10:05:51.293888 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 10:05:51.293910 CST | [antmaze-large-diverse-v2] L_Act             0.0270331
+2026-05-14 10:05:51.293933 CST | [antmaze-large-diverse-v2] L_Crit            0.74042
+2026-05-14 10:05:51.293955 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:05:51.293977 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:05:51.294000 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:07:32.892225 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:07:32.892297 CST | [antmaze-large-diverse-v2] Training Epochs  25
+2026-05-14 10:07:32.892325 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 10:07:32.892349 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 10:07:32.892373 CST | [antmaze-large-diverse-v2] L_Act             0.0301256
+2026-05-14 10:07:32.892396 CST | [antmaze-large-diverse-v2] L_Crit            0.811731
+2026-05-14 10:07:32.892419 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:07:32.892443 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:07:32.892466 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:09:14.449876 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:09:14.449959 CST | [antmaze-large-diverse-v2] Training Epochs  26
+2026-05-14 10:09:14.450004 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:09:14.450028 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:09:14.450050 CST | [antmaze-large-diverse-v2] L_Act             0.0286953
+2026-05-14 10:09:14.450074 CST | [antmaze-large-diverse-v2] L_Crit            0.732823
+2026-05-14 10:09:14.450096 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:09:14.450120 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:09:14.450143 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:10:56.000545 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:10:56.000658 CST | [antmaze-large-diverse-v2] Training Epochs  27
+2026-05-14 10:10:56.000691 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 10:10:56.000717 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 10:10:56.000741 CST | [antmaze-large-diverse-v2] L_Act             0.0283625
+2026-05-14 10:10:56.000769 CST | [antmaze-large-diverse-v2] L_Crit            0.704469
+2026-05-14 10:10:56.000793 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:10:56.000816 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:10:56.000840 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:12:37.181884 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:12:37.181967 CST | [antmaze-large-diverse-v2] Training Epochs  28
+2026-05-14 10:12:37.181997 CST | [antmaze-large-diverse-v2] AverageReturn     0.8
+2026-05-14 10:12:37.182022 CST | [antmaze-large-diverse-v2] NormReturn        0.8
+2026-05-14 10:12:37.182047 CST | [antmaze-large-diverse-v2] L_Act             0.0312654
+2026-05-14 10:12:37.182070 CST | [antmaze-large-diverse-v2] L_Crit            0.660973
+2026-05-14 10:12:37.182094 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:12:37.182117 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:12:37.182141 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:14:17.875287 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:14:17.875377 CST | [antmaze-large-diverse-v2] Training Epochs  29
+2026-05-14 10:14:17.875405 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:14:17.875432 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:14:17.875456 CST | [antmaze-large-diverse-v2] L_Act             0.0327912
+2026-05-14 10:14:17.875480 CST | [antmaze-large-diverse-v2] L_Crit            0.645193
+2026-05-14 10:14:17.875503 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:14:17.875527 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:14:17.875550 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:15:58.961846 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:15:58.961961 CST | [antmaze-large-diverse-v2] Training Epochs  30
+2026-05-14 10:15:58.961990 CST | [antmaze-large-diverse-v2] AverageReturn     0.8
+2026-05-14 10:15:58.962015 CST | [antmaze-large-diverse-v2] NormReturn        0.8
+2026-05-14 10:15:58.962038 CST | [antmaze-large-diverse-v2] L_Act             0.0317703
+2026-05-14 10:15:58.962074 CST | [antmaze-large-diverse-v2] L_Crit            0.633785
+2026-05-14 10:15:58.962097 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:15:58.962121 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:15:58.962144 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:17:39.189295 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:17:39.189403 CST | [antmaze-large-diverse-v2] Training Epochs  31
+2026-05-14 10:17:39.189432 CST | [antmaze-large-diverse-v2] AverageReturn     0.8
+2026-05-14 10:17:39.189456 CST | [antmaze-large-diverse-v2] NormReturn        0.8
+2026-05-14 10:17:39.189480 CST | [antmaze-large-diverse-v2] L_Act             0.0321109
+2026-05-14 10:17:39.189508 CST | [antmaze-large-diverse-v2] L_Crit            0.610926
+2026-05-14 10:17:39.189531 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:17:39.189555 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:17:39.189578 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:19:20.096776 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:19:20.096857 CST | [antmaze-large-diverse-v2] Training Epochs  32
+2026-05-14 10:19:20.096886 CST | [antmaze-large-diverse-v2] AverageReturn     0.8
+2026-05-14 10:19:20.096923 CST | [antmaze-large-diverse-v2] NormReturn        0.8
+2026-05-14 10:19:20.096952 CST | [antmaze-large-diverse-v2] L_Act             0.0355276
+2026-05-14 10:19:20.096976 CST | [antmaze-large-diverse-v2] L_Crit            0.671952
+2026-05-14 10:19:20.097002 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:19:20.097026 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:19:20.097049 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:21:03.496272 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:21:03.496343 CST | [antmaze-large-diverse-v2] Training Epochs  33
+2026-05-14 10:21:03.496370 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:21:03.496393 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:21:03.496416 CST | [antmaze-large-diverse-v2] L_Act             0.0353069
+2026-05-14 10:21:03.496438 CST | [antmaze-large-diverse-v2] L_Crit            0.624812
+2026-05-14 10:21:03.496461 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:21:03.496483 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:21:03.496506 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:22:44.551548 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:22:44.551635 CST | [antmaze-large-diverse-v2] Training Epochs  34
+2026-05-14 10:22:44.551665 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:22:44.551707 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:22:44.551731 CST | [antmaze-large-diverse-v2] L_Act             0.0358945
+2026-05-14 10:22:44.551755 CST | [antmaze-large-diverse-v2] L_Crit            0.589853
+2026-05-14 10:22:44.551779 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:22:44.551802 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:22:44.551826 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:24:25.671645 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:24:25.671728 CST | [antmaze-large-diverse-v2] Training Epochs  35
+2026-05-14 10:24:25.671757 CST | [antmaze-large-diverse-v2] AverageReturn     0.8
+2026-05-14 10:24:25.671783 CST | [antmaze-large-diverse-v2] NormReturn        0.8
+2026-05-14 10:24:25.671808 CST | [antmaze-large-diverse-v2] L_Act             0.0351961
+2026-05-14 10:24:25.671832 CST | [antmaze-large-diverse-v2] L_Crit            0.604941
+2026-05-14 10:24:25.671857 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:24:25.671883 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:24:25.671933 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:26:07.924668 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:26:07.924760 CST | [antmaze-large-diverse-v2] Training Epochs  36
+2026-05-14 10:26:07.924789 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 10:26:07.924814 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 10:26:07.924838 CST | [antmaze-large-diverse-v2] L_Act             0.0369572
+2026-05-14 10:26:07.924862 CST | [antmaze-large-diverse-v2] L_Crit            0.686975
+2026-05-14 10:26:07.924885 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:26:07.924908 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:26:07.924932 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:27:49.834047 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 10:27:49.834127 CST | [antmaze-large-diverse-v2] Training Epochs  37
+2026-05-14 10:27:49.834158 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:27:49.834184 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:27:49.834209 CST | [antmaze-large-diverse-v2] L_Act             0.036619
+2026-05-14 10:27:49.834233 CST | [antmaze-large-diverse-v2] L_Crit            0.650051
+2026-05-14 10:27:49.834263 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:27:49.834287 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:27:49.834310 CST | [antmaze-large-diverse-v2] ---------------  ---------
+2026-05-14 10:29:31.035955 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:29:31.036049 CST | [antmaze-large-diverse-v2] Training Epochs  38
+2026-05-14 10:29:31.036078 CST | [antmaze-large-diverse-v2] AverageReturn     0.8
+2026-05-14 10:29:31.036103 CST | [antmaze-large-diverse-v2] NormReturn        0.8
+2026-05-14 10:29:31.036127 CST | [antmaze-large-diverse-v2] L_Act             0.0374064
+2026-05-14 10:29:31.036155 CST | [antmaze-large-diverse-v2] L_Crit            0.623192
+2026-05-14 10:29:31.036178 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:29:31.036201 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:29:31.036225 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:31:11.429197 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:31:11.429279 CST | [antmaze-large-diverse-v2] Training Epochs  39
+2026-05-14 10:31:11.429323 CST | [antmaze-large-diverse-v2] AverageReturn     0.8
+2026-05-14 10:31:11.429348 CST | [antmaze-large-diverse-v2] NormReturn        0.8
+2026-05-14 10:31:11.429372 CST | [antmaze-large-diverse-v2] L_Act             0.0367223
+2026-05-14 10:31:11.429395 CST | [antmaze-large-diverse-v2] L_Crit            0.57903
+2026-05-14 10:31:11.429419 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:31:11.429443 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:31:11.429467 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:32:52.205199 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:32:52.205269 CST | [antmaze-large-diverse-v2] Training Epochs  40
+2026-05-14 10:32:52.205296 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:32:52.205319 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:32:52.205341 CST | [antmaze-large-diverse-v2] L_Act             0.0395503
+2026-05-14 10:32:52.205364 CST | [antmaze-large-diverse-v2] L_Crit            0.622909
+2026-05-14 10:32:52.205387 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:32:52.205410 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:32:52.205434 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:34:33.523678 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:34:33.523769 CST | [antmaze-large-diverse-v2] Training Epochs  41
+2026-05-14 10:34:33.523807 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:34:33.523832 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:34:33.523857 CST | [antmaze-large-diverse-v2] L_Act             0.0389845
+2026-05-14 10:34:33.523882 CST | [antmaze-large-diverse-v2] L_Crit            0.630988
+2026-05-14 10:34:33.523909 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:34:33.523933 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:34:33.523957 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:36:15.742469 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:36:15.742553 CST | [antmaze-large-diverse-v2] Training Epochs  42
+2026-05-14 10:36:15.742583 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 10:36:15.742608 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 10:36:15.742633 CST | [antmaze-large-diverse-v2] L_Act             0.0405932
+2026-05-14 10:36:15.742657 CST | [antmaze-large-diverse-v2] L_Crit            0.611351
+2026-05-14 10:36:15.742682 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:36:15.742706 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:36:15.742729 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:37:57.268457 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:37:57.268577 CST | [antmaze-large-diverse-v2] Training Epochs  43
+2026-05-14 10:37:57.268606 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:37:57.268632 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:37:57.268674 CST | [antmaze-large-diverse-v2] L_Act             0.0412257
+2026-05-14 10:37:57.268698 CST | [antmaze-large-diverse-v2] L_Crit            0.558988
+2026-05-14 10:37:57.268721 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:37:57.268744 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:37:57.268767 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:39:37.391299 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:39:37.391390 CST | [antmaze-large-diverse-v2] Training Epochs  44
+2026-05-14 10:39:37.391434 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:39:37.391459 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:39:37.391504 CST | [antmaze-large-diverse-v2] L_Act             0.0418935
+2026-05-14 10:39:37.391528 CST | [antmaze-large-diverse-v2] L_Crit            0.595576
+2026-05-14 10:39:37.391551 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:39:37.391574 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:39:37.391598 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:41:19.276047 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:41:19.276138 CST | [antmaze-large-diverse-v2] Training Epochs  45
+2026-05-14 10:41:19.276180 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 10:41:19.276205 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 10:41:19.276239 CST | [antmaze-large-diverse-v2] L_Act             0.0424412
+2026-05-14 10:41:19.276262 CST | [antmaze-large-diverse-v2] L_Crit            0.56867
+2026-05-14 10:41:19.276286 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:41:19.276309 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:41:19.276333 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:42:59.101620 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:42:59.101705 CST | [antmaze-large-diverse-v2] Training Epochs  46
+2026-05-14 10:42:59.101732 CST | [antmaze-large-diverse-v2] AverageReturn     0.8
+2026-05-14 10:42:59.101756 CST | [antmaze-large-diverse-v2] NormReturn        0.8
+2026-05-14 10:42:59.101780 CST | [antmaze-large-diverse-v2] L_Act             0.0430639
+2026-05-14 10:42:59.101803 CST | [antmaze-large-diverse-v2] L_Crit            0.549393
+2026-05-14 10:42:59.101827 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:42:59.101851 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:42:59.101874 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:44:40.627353 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:44:40.627427 CST | [antmaze-large-diverse-v2] Training Epochs  47
+2026-05-14 10:44:40.627468 CST | [antmaze-large-diverse-v2] AverageReturn     0.6
+2026-05-14 10:44:40.627493 CST | [antmaze-large-diverse-v2] NormReturn        0.6
+2026-05-14 10:44:40.627517 CST | [antmaze-large-diverse-v2] L_Act             0.0446477
+2026-05-14 10:44:40.627540 CST | [antmaze-large-diverse-v2] L_Crit            0.526771
+2026-05-14 10:44:40.627564 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:44:40.627592 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:44:40.627616 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:46:21.591057 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:46:21.591137 CST | [antmaze-large-diverse-v2] Training Epochs  48
+2026-05-14 10:46:21.591181 CST | [antmaze-large-diverse-v2] AverageReturn     0.8
+2026-05-14 10:46:21.591205 CST | [antmaze-large-diverse-v2] NormReturn        0.8
+2026-05-14 10:46:21.591233 CST | [antmaze-large-diverse-v2] L_Act             0.0445852
+2026-05-14 10:46:21.591258 CST | [antmaze-large-diverse-v2] L_Crit            0.531696
+2026-05-14 10:46:21.591282 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:46:21.591305 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:46:21.591331 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:48:02.665719 CST | [antmaze-large-diverse-v2] ---------------  ----------
+2026-05-14 10:48:02.665806 CST | [antmaze-large-diverse-v2] Training Epochs  49
+2026-05-14 10:48:02.665837 CST | [antmaze-large-diverse-v2] AverageReturn     0.7
+2026-05-14 10:48:02.665864 CST | [antmaze-large-diverse-v2] NormReturn        0.7
+2026-05-14 10:48:02.665888 CST | [antmaze-large-diverse-v2] L_Act             0.0453704
+2026-05-14 10:48:02.665911 CST | [antmaze-large-diverse-v2] L_Crit            0.528198
+2026-05-14 10:48:02.665935 CST | [antmaze-large-diverse-v2] Weight            0.5
+2026-05-14 10:48:02.665959 CST | [antmaze-large-diverse-v2] kl                1
+2026-05-14 10:48:02.665982 CST | [antmaze-large-diverse-v2] ---------------  ----------

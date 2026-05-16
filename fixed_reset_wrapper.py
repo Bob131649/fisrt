@@ -17,7 +17,7 @@ ENV_RESET_PRESETS = {
     "antmaze-large": {
         "fixed_starts": [
             [1.0, 1.0],
-            [4.0, 1.0],
+            [3.0, 1.0],
             [1.0, 6.0],
             [1.0, 10.0],
         ],
@@ -187,13 +187,15 @@ class FixedResetWrapper(gym.Wrapper):
             if not hasattr(base_env, "_rowcol_to_xy"):
                 raise AttributeError("AntMaze env does not expose _rowcol_to_xy().")
             rowcol = tuple(int(value) for value in start[:2])
-            return base_env._rowcol_to_xy(rowcol, add_random_noise=self.start_noise_scale > 0)
+            start_xy = base_env._rowcol_to_xy(rowcol, add_random_noise=False)
+            return self._add_xy_noise(start_xy[:2], self.start_noise_scale)
 
         if self.start_format == "auto":
             rounded = np.round(start[:2])
             if np.allclose(start[:2], rounded) and hasattr(base_env, "_rowcol_to_xy"):
                 rowcol = tuple(int(value) for value in rounded)
-                return base_env._rowcol_to_xy(rowcol, add_random_noise=self.start_noise_scale > 0)
+                start_xy = base_env._rowcol_to_xy(rowcol, add_random_noise=False)
+                return self._add_xy_noise(start_xy[:2], self.start_noise_scale)
             return self._add_xy_noise(start[:2], self.start_noise_scale)
 
         raise ValueError(f"Unknown start_format: {self.start_format}")
@@ -211,13 +213,15 @@ class FixedResetWrapper(gym.Wrapper):
             if not hasattr(base_env, "_rowcol_to_xy"):
                 raise AttributeError("AntMaze env does not expose _rowcol_to_xy().")
             rowcol = tuple(int(value) for value in goal[:2])
-            return base_env._rowcol_to_xy(rowcol, add_random_noise=self.goal_noise_scale > 0)
+            goal_xy = base_env._rowcol_to_xy(rowcol, add_random_noise=False)
+            return self._add_xy_noise(goal_xy[:2], self.goal_noise_scale)
 
         if self.goal_format == "auto":
             rounded = np.round(goal[:2])
             if np.allclose(goal[:2], rounded) and hasattr(base_env, "_rowcol_to_xy"):
                 rowcol = tuple(int(value) for value in rounded)
-                return base_env._rowcol_to_xy(rowcol, add_random_noise=self.goal_noise_scale > 0)
+                goal_xy = base_env._rowcol_to_xy(rowcol, add_random_noise=False)
+                return self._add_xy_noise(goal_xy[:2], self.goal_noise_scale)
             return self._add_xy_noise(goal[:2], self.goal_noise_scale)
 
         raise ValueError(f"Unknown goal_format: {self.goal_format}")

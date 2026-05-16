@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
+
+import h5py
 
 import d4rl
 import gym
@@ -12,6 +15,26 @@ from dataset.d4rl_dataset import D4rlDataset
 from fixed_reset_wrapper import FixedResetWrapper
 
 SUCCESS_RADIUS = 0.5
+
+
+def load_hdf5_dataset(dataset_path):
+    dataset = {}
+    with h5py.File(dataset_path, "r") as f:
+        for key in f.keys():
+            obj = f[key]
+            if isinstance(obj, h5py.Dataset):
+                dataset[key] = obj[:]
+            elif isinstance(obj, h5py.Group):
+                for sub_key in obj.keys():
+                    dataset[f"{key}/{sub_key}"] = obj[sub_key][:]
+
+    required_keys = ["observations", "actions", "rewards", "terminals"]
+    missing_keys = [key for key in required_keys if key not in dataset]
+    if missing_keys:
+        raise ValueError(
+            f"Dataset file is missing required keys: {', '.join(missing_keys)}"
+        )
+    return dataset
 
 
 def get_env_goal(env):
@@ -55,7 +78,14 @@ def build_policy(args):
     state_dim = raw_env.observation_space.shape[0]
     action_dim = raw_env.action_space.shape[0]
 
-    dataset = d4rl.qlearning_dataset(raw_env)
+    if args.dataset_path:
+        if not os.path.isfile(args.dataset_path):
+            raise FileNotFoundError(f"Dataset file not found: {args.dataset_path}")
+        print(f"loading normalization dataset from: {args.dataset_path}")
+        raw_dataset = load_hdf5_dataset(args.dataset_path)
+        dataset = d4rl.qlearning_dataset(raw_env, dataset=raw_dataset)
+    else:
+        dataset = d4rl.qlearning_dataset(raw_env)
     if "antmaze" in args.env_name:
         dataset["rewards"] = dataset["rewards"] * 100
         min_v = 0
@@ -84,6 +114,7 @@ def build_policy(args):
         expectile=args.expectile,
         kl_beta=args.kl_beta,
         doubleq_min=args.doubleq_min,
+        policy_mode=args.policy_mode,
     )
     policy.load(args.model_name, args.model_dir)
     policy.eval()
@@ -113,19 +144,21 @@ def main():
     parser.add_argument("--env_name", default="maze2d-large-v1", type=str)
     parser.add_argument("--model_dir", required=True, type=str)
     parser.add_argument("--model_name", default="model", type=str)
+    parser.add_argument("--dataset_path", default="", type=str)
     parser.add_argument("--episodes_per_start", default=5, type=int)
     parser.add_argument("--seed", default=789, type=int)
     parser.add_argument("--device", default="cuda", type=str)
+    parser.add_argument("--policy_mode", default="vae", choices=["lapo", "vae", "vae_bc"], type=str)
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--max_episode_steps", default=None, type=int)
-    parser.add_argument("--start_noise_scale", default=0.5, type=float)
-    parser.add_argument("--goal_noise_scale", default=0.1, type=float)
+    parser.add_argument("--start_noise_scale", default=0.1, type=float)
+    parser.add_argument("--goal_noise_scale", default=0.0, type=float)
     parser.add_argument("--vae_lr", default=2e-4, type=float)
     parser.add_argument("--actor_lr", default=2e-4, type=float)
     parser.add_argument("--critic_lr", default=2e-4, type=float)
     parser.add_argument("--tau", default=0.005, type=float)
     parser.add_argument("--discount", default=0.99, type=float)
-    parser.add_argument("--expectile", default=0.9, type=float)
+    parser.add_argument("--expectile", default=0.5, type=float)
     parser.add_argument("--kl_beta", default=1.0, type=float)
     parser.add_argument("--max_latent_action", default=0.675, type=float)
     parser.add_argument("--doubleq_min", default=1.0, type=float)

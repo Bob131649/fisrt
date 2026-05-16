@@ -23,12 +23,26 @@ class D4rlDataset(Dataset):
         assert('next_observations' in data.keys())
         dataset_size = data['observations'].shape[0]
 
+        GOAL = np.array([7.0, 9.0]) if 'antmaze' in env_name else np.array([32.0,24.0])
+
         for i in range(0, dataset_size):
+            next_state_pos = data['next_observations'][i][:2]
+            distance_to_goal = LA.norm(next_state_pos - GOAL)
+            if distance_to_goal < 0.2:
+                reward = 100.0
+                terminal = 1
+                # print(data['terminals'][i])
+            else:
+                reward = 0.0
+                terminal = 0
+
             self.states.append(data['observations'][i])
             self.next_states.append(data['next_observations'][i])
             self.actions.append(data['actions'][i])
-            self.rewards.append([data['rewards'][i]])
-            self.not_dones.append([1 - data['terminals'][i]])
+            # self.rewards.append([data['rewards'][i]])
+            # self.not_dones.append([1 - data['terminals'][i]])
+            self.rewards.append([reward])
+            self.not_dones.append([1 - terminal])
 
         self.states = np.array(self.states)
         self.next_states = np.array(self.next_states)

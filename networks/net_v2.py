@@ -56,18 +56,16 @@ class ActorVAE(nn.Module):
         log_var = self.log_var(z)
         std = torch.exp(log_var/2)
         z = mean + std * torch.randn_like(std)
-        
+
         u = self.decode(state, z)
 
         return u, mean, log_var
 
     def decode(self, state, z=None, clip=False):
         if z is None:
-            if clip:
-                z = torch.randn((state.shape[0], self.latent_dim)).to(self.device).clamp(-self.max_action, self.max_action)
-            else:
-                z = torch.randn((state.shape[0], self.latent_dim)).to(self.device)
+            z = torch.zeros((state.shape[0], self.latent_dim)).to(self.device)
 
+        
         a = F.relu(self.d1(torch.cat([state, z], 1)))
         a = F.relu(self.d2(a))
         a = F.relu(self.d3(a))
@@ -107,3 +105,23 @@ class Critic(nn.Module):
         q1 = F.relu(self.l3(q1))
         q1 = (self.l4(q1))
         return q1
+
+class OPEValue(nn.Module):
+
+    def __init__(self, state_dim):
+        super(OPEValue, self).__init__()
+        hidden_size = (256, 256, 256)
+
+        self.l1 = nn.Linear(state_dim, hidden_size[0])
+        self.l2 = nn.Linear(hidden_size[0], hidden_size[1])
+        self.l3 = nn.Linear(hidden_size[1], hidden_size[2])
+        self.l4 = nn.Linear(hidden_size[2], 1)
+
+    def forward(self, state):
+
+        v = F.relu(self.l1(state))
+        v = F.relu(self.l2(v))
+        v = F.relu(self.l3(v))
+        v = self.l4(v)
+
+        return v

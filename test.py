@@ -141,6 +141,131 @@ def eval_policy(policy, env, replay_buffer, eval_episodes=10, plot=False):
     print ("---------------------------------------")
     return info
 
+
+def build_loaded_policy(
+    args,
+    state_dim,
+    action_dim,
+    min_v,
+    max_v,
+    model_dir,
+    model_name,
+):
+    latent_dim = int(action_dim * 2)
+    loaded_policy = algos.Latent(
+        state_dim,
+        action_dim,
+        latent_dim,
+        min_v,
+        max_v,
+        device=args.device,
+        discount=args.discount,
+        tau=args.tau,
+        vae_lr=args.vae_lr,
+        actor_lr=args.actor_lr,
+        critic_lr=args.critic_lr,
+        max_latent_action=args.max_latent_action,
+        expectile=args.expectile,
+        kl_beta=args.kl_beta,
+        doubleq_min=args.doubleq_min,
+        policy_mode=args.policy_mode,
+    )
+    loaded_policy.load(model_name, model_dir)
+    loaded_policy.eval()
+    loaded_policy.copy_bn_param()
+    return loaded_policy
+
+
+def compare_state_dicts(current_module, loaded_module, module_name):
+    current_state = current_module.state_dict()
+    loaded_state = loaded_module.state_dict()
+
+    exact_match = True
+    max_abs_diff = 0.0
+    worst_key = None
+
+    for key, current_tensor in current_state.items():
+        loaded_tensor = loaded_state[key]
+        if not torch.equal(current_tensor, loaded_tensor):
+            exact_match = False
+            diff = torch.max(
+                torch.abs(current_tensor.detach().cpu() - loaded_tensor.detach().cpu())
+            ).item()
+            if diff > max_abs_diff:
+                max_abs_diff = diff
+                worst_key = key
+
+    print(
+        f"[compare] {module_name}: exact_match={exact_match}, "
+        f"max_abs_diff={max_abs_diff:.10f}, worst_key={worst_key}"
+    )
+    return exact_match
+
+
+def compare_policy_outputs(current_policy, loaded_policy, replay_buffer, raw_dataset, num_states):
+    total_states = len(raw_dataset["observations"])
+    compare_count = min(num_states, total_states)
+    if compare_count <= 0:
+        print("[compare] no states available for output comparison")
+        return
+
+    state_indices = np.linspace(0, total_states - 1, compare_count, dtype=int)
+    print(f"[compare] using dataset state indices: {state_indices.tolist()}")
+
+    for idx in state_indices:
+        obs = np.array(raw_dataset["observations"][idx], dtype=np.float32)
+        norm_obs = replay_buffer.normalize_state(obs)
+        current_action, current_q1, current_q2 = current_policy.select_action(norm_obs)
+        loaded_action, loaded_q1, loaded_q2 = loaded_policy.select_action(norm_obs)
+
+        action_diff = float(np.max(np.abs(current_action - loaded_action)))
+        q1_diff = abs(current_q1 - loaded_q1)
+        q2_diff = abs(current_q2 - loaded_q2)
+        print(
+            f"[compare] state_idx={int(idx)}: action_max_diff={action_diff:.10f}, "
+            f"q1_diff={q1_diff:.10f}, q2_diff={q2_diff:.10f}"
+        )
+
+
+def compare_saved_and_loaded_policy(
+    args,
+    current_policy,
+    replay_buffer,
+    raw_dataset,
+    state_dim,
+    action_dim,
+    min_v,
+    max_v,
+    model_dir,
+    model_name,
+):
+    print("---------------------------------------")
+    print(f"[compare] loading saved model from {os.path.abspath(model_dir)}")
+
+    current_policy.eval()
+    current_policy.copy_bn_param()
+    loaded_policy = build_loaded_policy(
+        args=args,
+        state_dim=state_dim,
+        action_dim=action_dim,
+        min_v=min_v,
+        max_v=max_v,
+        model_dir=model_dir,
+        model_name=model_name,
+    )
+
+    compare_state_dicts(current_policy.critic, loaded_policy.critic, "critic")
+    compare_state_dicts(current_policy.actor_vae, loaded_policy.actor_vae, "actor_vae")
+    compare_state_dicts(current_policy.actor, loaded_policy.actor, "actor")
+    compare_policy_outputs(
+        current_policy=current_policy,
+        loaded_policy=loaded_policy,
+        replay_buffer=replay_buffer,
+        raw_dataset=raw_dataset,
+        num_states=args.compare_num_states,
+    )
+    print("---------------------------------------")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Additional parameters
@@ -169,6 +294,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--plot', action='store_true')
     parser.add_argument('--device', default='cuda', type=str)
+    parser.add_argument('--policy_mode', default='lapo', choices=['lapo', 'vae', 'vae_bc'], type=str)
+    parser.add_argument('--compare_after_final_save', action='store_true')
+    parser.add_argument('--compare_num_states', default=5, type=int)
     parser.add_argument(
         "--terminal_log_path",
         default="",
@@ -247,7 +375,7 @@ if __name__ == "__main__":
                         device=args.device, discount=args.discount, tau=args.tau, 
                         vae_lr=args.vae_lr, actor_lr=args.actor_lr, critic_lr=args.critic_lr, 
                         max_latent_action=args.max_latent_action, expectile=args.expectile, kl_beta=args.kl_beta, 
-                        doubleq_min=args.doubleq_min)
+                        doubleq_min=args.doubleq_min, policy_mode=args.policy_mode)
 
     num_itr = int(args.max_timesteps/args.eval_freq)
     with tqdm(range(num_itr), desc='Epoch', leave=False) as tglobal:
@@ -299,6 +427,20 @@ if __name__ == "__main__":
                                            rec=np.mean(rec_list), kl=np.mean(kl_list))
 
     policy.save('model', folder_name)
+    print(f"final save model success: {os.path.abspath(folder_name)}")
+    if args.compare_after_final_save:
+        compare_saved_and_loaded_policy(
+            args=args,
+            current_policy=policy,
+            replay_buffer=d4rl_dataset,
+            raw_dataset=dataset,
+            state_dim=state_dim,
+            action_dim=action_dim,
+            min_v=min_v,
+            max_v=max_v,
+            model_dir=folder_name,
+            model_name='model',
+        )
 
     if terminal_log_file is not None:
         terminal_log_file.close()
