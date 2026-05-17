@@ -28,7 +28,12 @@ train v2
 ```shell
 $ python train_v2.py --ExpID 513 --env_name antmaze-large-diverse-v2 --dataset_path ~/first/dataset/generated_dataset/antmaze/expert/antmaze-expert-success250.hdf5 --plot
 ```
+
+eval model
 ```
+$ python eval_policy.py --model_dir ./results/Exp0010/maze2d-large-v1-1000/ --render
+```
+
 
 ## Expected results
 
