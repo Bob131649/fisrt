@@ -23,7 +23,7 @@ class D4rlDataset(Dataset):
         assert('next_observations' in data.keys())
         dataset_size = data['observations'].shape[0]
 
-        GOAL = np.array([7.0, 9.0]) if 'antmaze' in env_name else np.array([32.0,24.0])
+        GOAL = np.array([32.0, 24.0]) if 'antmaze' in env_name else np.array([7.0,9.0])
 
         for i in range(0, dataset_size):
             next_state_pos = data['next_observations'][i][:2]

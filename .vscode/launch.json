@@ -35,7 +35,22 @@
                 "/home/guannan/first/dataset/generated_dataset/antmaze/expert/antmaze-expert-success32.hdf5",
                 "--plot"
             ]
-        }
+        },
 
+        {
+            "name": "Debug train_ope",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/train_ope.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "args": [
+                "--ExpID", "517",
+                "--env_name", "maze2d-large-v1",
+                "--target_policy_dir", "./results/Exp0010/maze2d-large-v1-1000/",
+                "--target_policy_dataset_path", "/home/guannan/first/dataset/generated_dataset/maze2d/expert/maze2d-large-1000-keep10.hdf5",
+                "--plot"
+            ]
+        }
     ]
 }

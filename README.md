@@ -31,9 +31,13 @@ $ python train_v2.py --ExpID 513 --env_name antmaze-large-diverse-v2 --dataset_p
 
 eval model
 ```
-$ python eval_policy.py --model_dir ./results/Exp0010/maze2d-large-v1-1000/ --render
+python eval_policy.py --model_dir ./results/Exp0010/maze2d-large-v1-1000/ --dataset_path ~/first/dataset/generated_dataset/maze2d/expert/maze2d-large-1000-keep10.hdf5 
 ```
 
+plot heatmap
+```
+$ 
+```
 
 ## Expected results
 
