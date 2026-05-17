@@ -1,6 +1,8 @@
 # Latent-variable Advantage-weighted Policy Optimization for Offline Reinforcement Learning
 
-This is a pytorch implementation of paper [Latent-variable advantage-weighted policy optimization for offline reinforcement learning (LAPO)](https://proceedings.neurips.cc/paper_files/paper/2022/hash/efb2072a358cefb75886a315a6fcf880-Abstract-Conference.html) on [D4RL](https://github.com/rail-berkeley/d4rl) dataset.
+目前这个仓库是更改过的LAPO不带actor的部分 实现VAE sample from inital noise and generate action from actorvae decoder。
+
+在这个代码开发的基础之上 要注意align different dataset’s normalize
 
 ![LAPO-framwork](https://github.com/pcchenxi/LAPO-offlienRL/blob/main/figs/LAPO.jpg)
 
@@ -12,24 +14,20 @@ This is a pytorch implementation of paper [Latent-variable advantage-weighted po
 
 ## Scripts for D4RL dataset
 
-Maze2d: maze2d-umaze/medium/large-v1
+visualize model result 
 ```shell
-$ python train_v2.py --env_name maze2d-umaze-v1 --plot
+$ python visualize_model_result.py --results_dir ./results/Exp0010/
 ```
 
-Antmaze: antmaze-umaze/medium/large-diverse-v2
+train ope and pay attention to the args target policy and dataset_path
 ```shell
-$ python train_v2.py --env_name antmaze-umaze-diverse-v2 --plot
+$ python train_ope.py --ExpID 514 --env_name maze2d-large-v1 --target_policy_mode vae --plot --target_policy_dir ~/first/LAPO-offlienRL_without_Actor/results/Exp0010/maze2d-large-v1-1000/
 ```
 
-Mujoco locomotion: hopper/walker2d/halfcheetah-random/medium/expert-v2
+train v2
 ```shell
-$ python train_v2.py --env_name hopper-random-v2
+$ python train_v2.py --ExpID 513 --env_name antmaze-large-diverse-v2 --dataset_path ~/first/dataset/generated_dataset/antmaze/expert/antmaze-expert-success250.hdf5 --plot
 ```
-
-Kitchen: kitchen-complete/partial/mixed-v0
-```shell
-$ python train_v2.py --env_name kitchen-complete-v0
 ```
 
 ## Expected results
