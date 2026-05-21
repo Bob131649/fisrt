@@ -19,7 +19,7 @@ from fixed_reset_wrapper import FixedResetWrapper
 FIXED_START_MODE = "cycle"
 
 # Success region and radomized keep-step options.
-SUCCESS_RADIUS = 0.1
+SUCCESS_RADIUS = 0.2
 SUCCESS_HOLD_RADIUS = 0.5
 #SUCCESS_KEEP_STEP_CHOICES = [3, 5]
 

@@ -9,13 +9,14 @@ import matplotlib
 
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
+from matplotlib import colors
 import numpy as np
 import torch
 
 import d4rl
 import gym
 
-import algos.algos_v2 as algos
+import algos.algos_v2_ope as algos
 from algos.ope import build_wrapped_env, get_env_goal, get_env_start_xy
 from dataset.d4rl_dataset import D4rlDataset
 
@@ -95,7 +96,24 @@ def collect_start_goal_points(env_name):
     return np.array(starts, dtype=np.float32) if starts else np.zeros((0, 2), dtype=np.float32), goal
 
 
-def load_ope_policy(args, env_name, ope_dataset, min_v, max_v, state_dim, action_dim):
+def build_norm_dataset(env, env_name, dataset_path, discount):
+    dataset = build_qlearning_dataset(env, dataset_path)
+    min_v, max_v = preprocess_dataset_rewards(dataset, env_name, discount)
+    norm_dataset = D4rlDataset(dataset, env_name)
+    raw_observations = np.array(dataset["observations"], dtype=np.float32)
+    return dataset, raw_observations, norm_dataset, min_v, max_v
+
+
+def load_ope_policy(
+    args,
+    env_name,
+    ope_dataset,
+    target_policy_dataset,
+    min_v,
+    max_v,
+    state_dim,
+    action_dim,
+):
     target_policy_dir = resolve_arg(args, args.variant, "target_policy_dir")
     target_policy_name = resolve_arg(args, args.variant, "target_policy_name", "model")
     target_policy_mode = resolve_arg(args, args.variant, "target_policy_mode", "vae")
@@ -129,10 +147,10 @@ def load_ope_policy(args, env_name, ope_dataset, min_v, max_v, state_dim, action
         ope_state_std=ope_dataset.state_std,
         ope_action_mean=ope_dataset.action_mean,
         ope_action_std=ope_dataset.action_std,
-        target_policy_state_mean=ope_dataset.state_mean,
-        target_policy_state_std=ope_dataset.state_std,
-        target_policy_action_mean=ope_dataset.action_mean,
-        target_policy_action_std=ope_dataset.action_std,
+        target_policy_state_mean=target_policy_dataset.state_mean,
+        target_policy_state_std=target_policy_dataset.state_std,
+        target_policy_action_mean=target_policy_dataset.action_mean,
+        target_policy_action_std=target_policy_dataset.action_std,
     )
     policy.load(args.model_name, args.ope_model_dir)
     policy.eval()
@@ -151,34 +169,189 @@ def predict_dataset_values(policy, raw_observations, ope_dataset, batch_size):
     return np.concatenate(values, axis=0)
 
 
-def build_heatmap(xy, values, grid_size):
+def collect_success_rollout_states(
+    policy,
+    ope_dataset,
+    env_name,
+    episodes_per_start,
+    max_episode_steps=None,
+):
+    env = build_wrapped_env(
+        env_name,
+        start_mode="cycle",
+        start_noise_scale=0.0,
+        goal_noise_scale=0.0,
+    )
+    if not env.fixed_starts:
+        raise ValueError("Wrapper did not provide any fixed starts for this env.")
+
+    rollout_limit = max_episode_steps or getattr(env, "_max_episode_steps", 1000)
+    total_episodes = len(env.fixed_starts) * episodes_per_start
+    successful_observations = []
+    successful_xy = []
+
+    for _ in range(total_episodes):
+        state, done = env.reset(), False
+        goal_xy = get_env_goal(env)
+        episode_states = []
+        episode_xy = []
+        step_count = 0
+        success = False
+
+        while not done and step_count < rollout_limit:
+            episode_states.append(np.array(state, dtype=np.float32))
+            episode_xy.append(np.array(state[:2], dtype=np.float32))
+            norm_state = ope_dataset.normalize_state(np.array(state))
+            action, _, _ = policy.select_action(norm_state)
+            env_action = ope_dataset.unnormalize_action(action)
+            state, reward, done, _ = env.step(env_action)
+            step_count += 1
+            if "antmaze" in env_name:
+                success = success or (reward >= 1.0)
+            else:
+                goal_distance = np.linalg.norm(state[:2] - goal_xy[:2])
+                success = success or (goal_distance <= 0.5 or reward >= 0.95)
+
+        if success and episode_states:
+            successful_observations.extend(episode_states)
+            successful_xy.extend(episode_xy)
+
+    env.close()
+    if not successful_observations:
+        return np.zeros((0, 2), dtype=np.float32), np.zeros((0, 2), dtype=np.float32)
+    observations = np.array(successful_observations, dtype=np.float32)
+    xy = np.array(successful_xy, dtype=np.float32)
+    return observations, xy
+
+
+def collect_maze2d_env_pose_states(env_name, pose_density=300):
+    env = gym.make(env_name)
+    base_env = env.unwrapped
+    if "maze2d" not in env_name:
+        env.close()
+        raise ValueError("env_pose source is only supported for maze2d environments.")
+    if not hasattr(base_env, "empty_and_goal_locations") or not hasattr(base_env, "set_state"):
+        env.close()
+        raise ValueError("Maze2D env does not expose empty_and_goal_locations/set_state.")
+
+    pose_density = max(int(pose_density), 1)
+    offsets = np.linspace(-0.45, 0.45, pose_density, dtype=np.float32)
+    qvel_template = np.zeros(base_env.model.nv, dtype=np.float32)
+    observations = []
+    xy_points = []
+
+    env.reset()
+    for cell in base_env.empty_and_goal_locations:
+        cell_xy = np.array(cell, dtype=np.float32)
+        for dx in offsets:
+            for dy in offsets:
+                qpos = cell_xy + np.array([dx, dy], dtype=np.float32)
+                base_env.sim.reset()
+                base_env.set_state(qpos, qvel_template)
+                obs = base_env._get_obs().astype(np.float32)
+                observations.append(obs)
+                xy_points.append(obs[:2].copy())
+
+    env.close()
+    return np.array(observations, dtype=np.float32), np.array(xy_points, dtype=np.float32)
+
+
+def build_heatmap(xy, values, grid_size, agg="mean"):
     x = xy[:, 0]
     y = xy[:, 1]
     x_edges = np.linspace(np.min(x), np.max(x), grid_size + 1)
     y_edges = np.linspace(np.min(y), np.max(y), grid_size + 1)
+    x_idx = np.clip(np.digitize(x, x_edges) - 1, 0, grid_size - 1)
+    y_idx = np.clip(np.digitize(y, y_edges) - 1, 0, grid_size - 1)
+    flat_idx = x_idx * grid_size + y_idx
 
-    value_sum, _, _ = np.histogram2d(x, y, bins=[x_edges, y_edges], weights=values)
-    counts, _, _ = np.histogram2d(x, y, bins=[x_edges, y_edges])
-    heatmap = np.divide(
-        value_sum,
-        counts,
-        out=np.full_like(value_sum, np.nan, dtype=np.float64),
-        where=counts > 0,
-    )
+    order = np.argsort(flat_idx)
+    flat_sorted = flat_idx[order]
+    values_sorted = values[order]
+    unique_bins, start_idx = np.unique(flat_sorted, return_index=True)
+    end_idx = np.append(start_idx[1:], values_sorted.shape[0])
+
+    heatmap = np.full((grid_size, grid_size), np.nan, dtype=np.float64)
+    counts = np.zeros((grid_size, grid_size), dtype=np.float64)
+    for flat_bin, begin, end in zip(unique_bins, start_idx, end_idx):
+        bucket = values_sorted[begin:end]
+        bucket = bucket[~np.isnan(bucket)]
+        if bucket.size == 0:
+            continue
+        if agg == "mean":
+            agg_value = float(np.mean(bucket))
+        elif agg == "max":
+            agg_value = float(np.max(bucket))
+        elif agg == "p90":
+            agg_value = float(np.percentile(bucket, 90))
+        elif agg == "p75":
+            agg_value = float(np.percentile(bucket, 75))
+        else:
+            raise ValueError(f"Unsupported agg mode: {agg}")
+
+        xi = flat_bin // grid_size
+        yi = flat_bin % grid_size
+        heatmap[xi, yi] = agg_value
+        counts[xi, yi] = end - begin
+
     return heatmap.T, counts.T, x_edges, y_edges
 
 
-def plot_heatmap(heatmap, counts, x_edges, y_edges, starts, goal, output_path, title):
+def plot_heatmap(
+    heatmap,
+    counts,
+    x_edges,
+    y_edges,
+    starts,
+    goal,
+    output_path,
+    title,
+    overlay_xy=None,
+    vmin=None,
+    vmax=None,
+    band_width=None,
+):
     fig, ax = plt.subplots(figsize=(9, 7))
     extent = [x_edges[0], x_edges[-1], y_edges[0], y_edges[-1]]
+    image_kwargs = {
+        "origin": "lower",
+        "extent": extent,
+        "aspect": "auto",
+        "cmap": "viridis",
+        "vmin": vmin,
+        "vmax": vmax,
+    }
+    if band_width is not None and band_width > 0:
+        valid_values = heatmap[~np.isnan(heatmap)]
+        if valid_values.size > 0:
+            band_min = vmin if vmin is not None else float(np.min(valid_values))
+            band_max = vmax if vmax is not None else float(np.max(valid_values))
+            band_start = band_width * np.floor(band_min / band_width)
+            band_stop = band_width * np.ceil(band_max / band_width)
+            boundaries = np.arange(band_start, band_stop + band_width, band_width, dtype=np.float64)
+            if boundaries.size >= 2:
+                cmap = plt.get_cmap("viridis", boundaries.size - 1)
+                norm = colors.BoundaryNorm(boundaries, cmap.N, clip=True)
+                image_kwargs["cmap"] = cmap
+                image_kwargs["norm"] = norm
+                image_kwargs.pop("vmin", None)
+                image_kwargs.pop("vmax", None)
     image = ax.imshow(
         heatmap,
-        origin="lower",
-        extent=extent,
-        aspect="auto",
-        cmap="viridis",
+        **image_kwargs,
     )
     plt.colorbar(image, ax=ax, label="Predicted V(s)")
+
+    if overlay_xy is not None and overlay_xy.size > 0:
+        ax.scatter(
+            overlay_xy[:, 0],
+            overlay_xy[:, 1],
+            c="white",
+            s=2,
+            alpha=0.15,
+            linewidths=0,
+            label="Success traj",
+        )
 
     if starts.size > 0:
         ax.scatter(starts[:, 0], starts[:, 1], c="red", s=55, label="Fixed starts")
@@ -194,6 +367,21 @@ def plot_heatmap(heatmap, counts, x_edges, y_edges, starts, goal, output_path, t
     plt.close(fig)
 
 
+def print_value_stats(name, values):
+    valid = values[~np.isnan(values)]
+    if valid.size == 0:
+        print(f"{name}: no valid values")
+        return
+    print(f"{name}:")
+    print(f"  count={valid.size}")
+    print(f"  min={np.min(valid):.6f}")
+    print(f"  max={np.max(valid):.6f}")
+    print(f"  mean={np.mean(valid):.6f}")
+    print(f"  median={np.median(valid):.6f}")
+    for q in (1, 5, 10, 25, 50, 75, 90, 95, 99):
+        print(f"  p{q}={np.percentile(valid, q):.6f}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ope_model_dir", required=True, type=str)
@@ -204,6 +392,39 @@ def main():
     parser.add_argument("--batch_size", default=4096, type=int)
     parser.add_argument("--output", default="", type=str)
     parser.add_argument("--save_npz", action="store_true")
+    parser.add_argument(
+        "--source",
+        default="dataset",
+        choices=["dataset", "rollout_success", "env_pose"],
+        help="States used to build the heatmap.",
+    )
+    parser.add_argument(
+        "--agg",
+        default="mean",
+        choices=["mean", "max", "p90", "p75"],
+        help="Aggregation used inside each spatial bin.",
+    )
+    parser.add_argument("--rollout_episodes_per_start", default=20, type=int)
+    parser.add_argument("--rollout_max_episode_steps", default=None, type=int)
+    parser.add_argument("--overlay_success_traj", action="store_true")
+    parser.add_argument("--vmin", default=None, type=float)
+    parser.add_argument("--vmax", default=None, type=float)
+    parser.add_argument("--vmin_quantile", default=0.05, type=float)
+    parser.add_argument("--vmax_quantile", default=0.95, type=float)
+    parser.add_argument("--hide_below", default=None, type=float)
+    parser.add_argument("--hide_above", default=None, type=float)
+    parser.add_argument(
+        "--env_pose_density",
+        default=9,
+        type=int,
+        help="Number of samples per free-cell axis when source=env_pose for maze2d.",
+    )
+    parser.add_argument(
+        "--band_width",
+        default=None,
+        type=float,
+        help="Use discrete color bands of this value width, e.g. 20 for 0-20, 20-40, ...",
+    )
     args = parser.parse_args()
 
     args.variant = load_variant(args.ope_model_dir)
@@ -219,19 +440,94 @@ def main():
     output_path = args.output or os.path.join(args.ope_model_dir, "ope_value_heatmap.png")
 
     env = gym.make(env_name)
-    dataset = build_qlearning_dataset(env, dataset_path)
-    raw_observations = np.array(dataset["observations"], dtype=np.float32)
-    min_v, max_v = preprocess_dataset_rewards(dataset, env_name, discount)
-    ope_dataset = D4rlDataset(dataset, env_name)
+    _, raw_observations, ope_dataset, min_v, max_v = build_norm_dataset(
+        env, env_name, dataset_path, discount
+    )
+    target_policy_dataset_path = resolve_arg(args, args.variant, "target_policy_dataset_path", dataset_path)
+    if target_policy_dataset_path == dataset_path:
+        target_policy_dataset = ope_dataset
+    else:
+        _, _, target_policy_dataset, _, _ = build_norm_dataset(
+            env, env_name, target_policy_dataset_path, discount
+        )
 
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
-    policy = load_ope_policy(args, env_name, ope_dataset, min_v, max_v, state_dim, action_dim)
+    policy = load_ope_policy(
+        args,
+        env_name,
+        ope_dataset,
+        target_policy_dataset,
+        min_v,
+        max_v,
+        state_dim,
+        action_dim,
+    )
+
+    overlay_xy = None
+    if args.source == "rollout_success":
+        raw_observations, success_xy = collect_success_rollout_states(
+            policy,
+            ope_dataset,
+            env_name,
+            args.rollout_episodes_per_start,
+            args.rollout_max_episode_steps,
+        )
+        xy = raw_observations[:, :2]
+        overlay_xy = success_xy
+    elif args.source == "env_pose":
+        raw_observations, xy = collect_maze2d_env_pose_states(
+            env_name,
+            pose_density=args.env_pose_density,
+        )
+        if args.overlay_success_traj:
+            _, overlay_xy = collect_success_rollout_states(
+                policy,
+                ope_dataset,
+                env_name,
+                args.rollout_episodes_per_start,
+                args.rollout_max_episode_steps,
+            )
+    else:
+        xy = raw_observations[:, :2]
+        if args.overlay_success_traj:
+            _, overlay_xy = collect_success_rollout_states(
+                policy,
+                ope_dataset,
+                env_name,
+                args.rollout_episodes_per_start,
+                args.rollout_max_episode_steps,
+            )
 
     values = predict_dataset_values(policy, raw_observations, ope_dataset, args.batch_size)
-    xy = raw_observations[:, :2]
-    heatmap, counts, x_edges, y_edges = build_heatmap(xy, values, args.grid_size)
+    print_value_stats("raw value stats", values)
+    if args.hide_below is not None:
+        values = values.copy()
+        values[values < args.hide_below] = np.nan
+    if args.hide_above is not None:
+        values = values.copy()
+        values[values > args.hide_above] = np.nan
+    print_value_stats("displayed value stats", values)
+    heatmap, counts, x_edges, y_edges = build_heatmap(xy, values, args.grid_size, agg=args.agg)
     starts, goal = collect_start_goal_points(env_name)
+    valid_values = heatmap[~np.isnan(heatmap)]
+    vmin = None
+    vmax = None
+    if args.vmin is not None or args.vmax is not None:
+        vmin = args.vmin
+        vmax = args.vmax
+    elif valid_values.size > 0:
+        if args.vmin_quantile is not None:
+            vmin = float(np.quantile(valid_values, args.vmin_quantile))
+        if args.vmax_quantile is not None:
+            vmax = float(np.quantile(valid_values, args.vmax_quantile))
+    if valid_values.size > 0:
+        print(
+            "heatmap color range: "
+            f"vmin={vmin if vmin is not None else 'auto'}, "
+            f"vmax={vmax if vmax is not None else 'auto'}, "
+            f"band_width={args.band_width if args.band_width is not None else 'none'}"
+        )
 
     plot_heatmap(
         heatmap=heatmap,
@@ -241,7 +537,11 @@ def main():
         starts=starts,
         goal=goal,
         output_path=output_path,
-        title=f"OPE Value Heatmap: {env_name}",
+        title=f"OPE Value Heatmap: {env_name} ({args.source}, {args.agg})",
+        overlay_xy=overlay_xy,
+        vmin=vmin,
+        vmax=vmax,
+        band_width=args.band_width,
     )
     print(f"saved heatmap to: {output_path}")
 

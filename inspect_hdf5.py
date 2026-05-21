@@ -7,13 +7,26 @@ import h5py
 import numpy as np
 
 
+def get_num_points(h5_file):
+    if "observations" in h5_file and isinstance(h5_file["observations"], h5py.Dataset):
+        return len(h5_file["observations"]), "observations"
+
+    for name in h5_file:
+        obj = h5_file[name]
+        if isinstance(obj, h5py.Dataset) and obj.shape != ():
+            return len(obj), name
+
+    return None, None
+
+
 def format_array_preview(array, num_items, full):
     preview = array if full else array[:num_items]
     return np.array2string(
         preview,
         precision=6,
-        threshold=np.inf if full else 200,
-        edgeitems=3,
+        threshold=np.inf,
+        edgeitems=preview.size,
+        max_line_width=10_000,
         suppress_small=False,
     )
 
@@ -59,6 +72,16 @@ def inspect_hdf5(dataset_path, output_path, num_items, full):
     ]
 
     with h5py.File(dataset_path, "r") as h5_file:
+        num_points, point_key = get_num_points(h5_file)
+        if num_points is not None:
+            lines.extend(
+                [
+                    f"num_points: {num_points}",
+                    f"point_count_key: {point_key}",
+                    "",
+                ]
+            )
+
         def collect(name, obj):
             if isinstance(obj, h5py.Group):
                 lines.append(f"[Group] {name}/")

@@ -14,6 +14,10 @@
 
 ## Scripts for D4RL dataset
 
+generate dataset(注意修改D4rl/d4rl/pointmaze/maze_env里面给reward的radius以及generate dataset里面的radius)
+```
+python generate_dataset_per_start_episodes.py --env_name maze2d-large-v1 --model_dir ./results/final/maze2d-large-v1/ --output ~/first/dataset/generated_dataset/maze2d/expert/test_519.hdf5 --plot --success_episodes_per_start_list 13 32 63 125 250
+```
 visualize model result 
 ```shell
 $ python visualize_model_result.py --results_dir ./results/Exp0010/
@@ -36,7 +40,7 @@ python eval_policy.py --model_dir ./results/Exp0010/maze2d-large-v1-1000/ --data
 
 plot heatmap
 ```
-$ 
+$ python plot_heatmap.py --ope_dataset_path ~/first/dataset/generated_dataset/maze2d/random/maze2d-large-sparse-v1.hdf5 --ope_model_dir ./results/Exp0517/maze2d-large-v1_ope/ --grid_size 1200 --agg p90 --overlay_success_traj --vmin 0 --vmax 100 --output ./figure/test6.png
 ```
 
 ## Expected results

@@ -28,7 +28,7 @@ class D4rlDataset(Dataset):
         for i in range(0, dataset_size):
             next_state_pos = data['next_observations'][i][:2]
             distance_to_goal = LA.norm(next_state_pos - GOAL)
-            if distance_to_goal < 0.2:
+            if distance_to_goal < 0.5:
                 reward = 100.0
                 terminal = 1
                 # print(data['terminals'][i])

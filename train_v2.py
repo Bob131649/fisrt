@@ -152,8 +152,8 @@ if __name__ == "__main__":
     parser.add_argument("--env_name", default="maze2d-large-v1")     # OpenAI gym environment name
     parser.add_argument("--dataset_path", default="", type=str)      # Optional custom dataset path (.hdf5)
     parser.add_argument("--seed", default=789, type=int)                  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--eval_freq", default=10000, type=int)           # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=1e5, type=int)      # Max time steps to run environment for
+    parser.add_argument("--eval_freq", default=5000, type=int)           # How often (time steps) we evaluate
+    parser.add_argument("--max_timesteps", default=2e5, type=int)      # Max time steps to run environment for
     parser.add_argument('--batch_size', default=512, type=int)
     parser.add_argument('--vae_lr', default=2e-4, type=float)	        # action policy (VAE) learning rate
     parser.add_argument('--actor_lr', default=2e-4, type=float)	        # latent policy learning rate

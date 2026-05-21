@@ -3,7 +3,7 @@
 import argparse, os, sys, torch, h5py
 import numpy as np
 import gym, d4rl
-import algos.algos_v2 as algos
+import algos.algos_v2_ope as algos
 from algos.ope import build_wrapped_env, estimate_ope, mc_eval_value_alignment
 from tqdm.auto import tqdm
 from logger import logger, setup_logger
@@ -64,8 +64,8 @@ if __name__ == "__main__":
     parser.add_argument("--save_freq", default=1, type=int)
     parser.add_argument("--env_name", default="maze2d-large-v1")
     parser.add_argument("--dataset_path", default="", type=str)
-    parser.add_argument("--ope_dataset_path", default="", type=str)
-    parser.add_argument("--target_policy_dataset_path", default="", type=str)
+    parser.add_argument("--ope_dataset_path", default="", type=str, help="The dataset will be used for OPE training and evaluation.")
+    parser.add_argument("--target_policy_dataset_path", default="", type=str, help="The dataset trained traget policy will be used for normalization.")
     parser.add_argument("--seed", default=789, type=int)
     parser.add_argument("--eval_freq", default=10000, type=int)
     parser.add_argument("--max_timesteps", default=1e5, type=int)
