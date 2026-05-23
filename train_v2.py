@@ -13,7 +13,7 @@ from logger import logger, setup_logger
 from dataset.d4rl_dataset import D4rlDataset
 from fixed_reset_wrapper import FixedResetWrapper
 from torch.utils.data import DataLoader
-
+from networks.net_v2 import OPEValue
 
 class TeeStream:
     def __init__(self, *streams):
@@ -141,6 +141,56 @@ def eval_policy(policy, env, replay_buffer, eval_episodes=10, plot=False):
     print ("---------------------------------------")
     return info
 
+def apply_reference_reward_shaping(
+    replay_buffer,
+    state_dim,
+    ope_ref_dir,
+    ope_ref_name,
+    discount,
+    shape_lambda,
+    shape_clip,
+    device,
+    batch_size=8192,
+):
+    value_path = os.path.join(ope_ref_dir, f"{ope_ref_name}_value.pth")
+    if not os.path.isfile(value_path):
+        raise FileNotFoundError(
+            f"OPE value checkpoint not found: {value_path}. "
+            "This code uses the OPE value network as Vref(s); the critic checkpoint is Q(s,a)."
+        )
+
+    ref_value = OPEValue(state_dim).to(device)
+    ref_value.load_state_dict(torch.load(value_path, map_location=device))
+    ref_value.eval()
+
+    def predict_phi(states):
+        values = []
+        with torch.no_grad():
+            for start in range(0, len(states), batch_size):
+                state = torch.as_tensor(
+                    states[start : start + batch_size],
+                    dtype=torch.float32,
+                    device=device,
+                )
+                value = ref_value(state).clamp(-shape_clip, shape_clip)
+                values.append(value.cpu().numpy())
+        return np.concatenate(values, axis=0)
+
+    phi = predict_phi(replay_buffer.states)
+    next_phi = predict_phi(replay_buffer.next_states)
+    original_rewards = replay_buffer.rewards.astype(np.float32)
+    shaping = discount * replay_buffer.not_dones * next_phi - phi
+    replay_buffer.rewards = (original_rewards + shape_lambda * shaping).astype(np.float32)
+
+    print(
+        "applied reference reward shaping: "
+        f"reward mean {original_rewards.mean():.4f}->{replay_buffer.rewards.mean():.4f}, "
+        f"shape mean {shaping.mean():.4f}, "
+        f"shape range [{shaping.min():.4f}, {shaping.max():.4f}]"
+    )
+    return replay_buffer.rewards.min() / (1 - discount), replay_buffer.rewards.max() / (1 - discount)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Additional parameters
@@ -169,6 +219,11 @@ if __name__ == "__main__":
 
     parser.add_argument('--plot', action='store_true')
     parser.add_argument('--device', default='cuda', type=str)
+    parser.add_argument("--ope_ref_dir", default="", type=str)
+    parser.add_argument("--ope_ref_name", default="model", type=str)
+    parser.add_argument("--shape_lambda", default=1.0, type=float)
+    parser.add_argument("--shape_clip", default=10.0, type=float)
+    parser.add_argument("--shape_batch_size", default=8192, type=int)
     parser.add_argument(
         "--terminal_log_path",
         default="",
@@ -233,6 +288,19 @@ if __name__ == "__main__":
         max_v = dataset['rewards'].max()/(1-args.discount)
 
     d4rl_dataset = D4rlDataset(dataset, args.env_name)
+    if args.ope_ref_dir:
+        min_v, max_v = apply_reference_reward_shaping(
+            d4rl_dataset,
+            state_dim=state_dim,
+            ope_ref_dir=args.ope_ref_dir,
+            ope_ref_name=args.ope_ref_name,
+            discount=args.discount,
+            shape_lambda=args.shape_lambda,
+            shape_clip=args.shape_clip,
+            device=args.device,
+            batch_size=args.shape_batch_size,
+        )
+
     dataloader = DataLoader(
         d4rl_dataset,
         sampler=torch.utils.data.RandomSampler(d4rl_dataset, num_samples=args.batch_size*args.eval_freq, replacement=True),
