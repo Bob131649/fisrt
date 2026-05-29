@@ -170,7 +170,7 @@ if __name__ == "__main__":
         doubleq_min=args.doubleq_min,
         target_policy_dir=args.target_policy_dir,
         target_policy_name=args.target_policy_name,
-        target_policy_mode=args.target_policy_mode,
+        # target_policy_mode=args.target_policy_mode,
         ope_state_mean=d4rl_dataset.state_mean,
         ope_state_std=d4rl_dataset.state_std,
         ope_action_mean=d4rl_dataset.action_mean,
@@ -236,8 +236,7 @@ if __name__ == "__main__":
                 crit=np.mean(crit_list),
                 value=np.mean(value_list) if value_list else 0.0,
             )
-
-    policy.save('model', folder_name)
+            policy.save('model', folder_name)
 
     if terminal_log_file is not None:
         terminal_log_file.close()

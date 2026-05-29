@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+'''
+这个代码用来plot每个trajectory的reward 直接从数据集里面切 可以当做ope value function里面offline部分呢的gt值
+'''
 import argparse
 import json
 import os
@@ -104,9 +106,82 @@ def build_norm_dataset(env, env_name, dataset_path, discount):
     return dataset, raw_observations, norm_dataset, min_v, max_v
 
 
-def load_visualization_observations(env, dataset_path):
-    dataset = build_qlearning_dataset(env, dataset_path)
-    return np.array(dataset["observations"], dtype=np.float32)
+def load_visualization_dataset(env, dataset_path):
+    if dataset_path:
+        if not os.path.isfile(dataset_path):
+            raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
+        print(f"loading visualization dataset from: {dataset_path}")
+        return load_hdf5_dataset(dataset_path)
+    print("loading visualization dataset from env.get_dataset()")
+    return env.get_dataset()
+
+
+def compute_episode_ranges(terminals, timeouts=None):
+    terminals = np.asarray(terminals).reshape(-1).astype(bool)
+    if timeouts is None:
+        done = terminals
+    else:
+        timeouts = np.asarray(timeouts).reshape(-1).astype(bool)
+        if len(timeouts) != len(terminals):
+            raise ValueError(
+                f"Length mismatch between terminals ({len(terminals)}) "
+                f"and timeouts ({len(timeouts)})."
+            )
+        done = np.logical_or(terminals, timeouts)
+
+    done_indices = np.where(done)[0]
+    if done_indices.size == 0:
+        return [(0, len(terminals))]
+
+    episode_ranges = []
+    last_end = 0
+    for done_idx in done_indices:
+        end = int(done_idx) + 1
+        if end > last_end:
+            episode_ranges.append((last_end, end))
+        last_end = end
+    if last_end < len(terminals):
+        episode_ranges.append((last_end, len(terminals)))
+    return episode_ranges
+
+
+def compute_returns_to_go_from_dataset(dataset, discount):
+    required_keys = ["observations", "rewards", "terminals"]
+    missing_keys = [key for key in required_keys if key not in dataset]
+    if missing_keys:
+        raise ValueError(
+            f"Visualization dataset is missing required keys: {', '.join(missing_keys)}"
+        )
+
+    observations = np.asarray(dataset["observations"], dtype=np.float32)
+    rewards = np.asarray(dataset["rewards"], dtype=np.float32).reshape(-1)
+    terminals = np.asarray(dataset["terminals"]).reshape(-1)
+    timeouts = dataset.get("timeouts")
+    if timeouts is not None:
+        timeouts = np.asarray(timeouts).reshape(-1)
+
+    if not (len(observations) == len(rewards) == len(terminals)):
+        raise ValueError(
+            "Length mismatch in visualization dataset: "
+            f"observations={len(observations)}, rewards={len(rewards)}, "
+            f"terminals={len(terminals)}"
+        )
+
+    episode_ranges = compute_episode_ranges(terminals, timeouts)
+    returns = np.full_like(rewards, np.nan, dtype=np.float32)
+    for begin, end in episode_ranges:
+        success_indices = np.where(np.isclose(rewards[begin:end], 1.0))[0]
+        if success_indices.size == 0:
+            continue
+
+        first_success_idx = begin + int(success_indices[0])
+        running_return = 100.0
+        for idx in range(first_success_idx, begin - 1, -1):
+            returns[idx] = running_return
+            running_return *= discount
+
+    print(f"visualization episodes: {len(episode_ranges)}")
+    return observations, returns
 
 
 def load_ope_policy(
@@ -315,6 +390,7 @@ def plot_heatmap(
     vmin=None,
     vmax=None,
     band_width=None,
+    colorbar_label="Value",
 ):
     fig, ax = plt.subplots(figsize=(9, 7))
     extent = [x_edges[0], x_edges[-1], y_edges[0], y_edges[-1]]
@@ -345,7 +421,7 @@ def plot_heatmap(
         heatmap,
         **image_kwargs,
     )
-    plt.colorbar(image, ax=ax, label="Predicted V(s)")
+    plt.colorbar(image, ax=ax, label=colorbar_label)
 
     if overlay_xy is not None and overlay_xy.size > 0:
         ax.scatter(
@@ -385,6 +461,17 @@ def print_value_stats(name, values):
     print(f"  median={np.median(valid):.6f}")
     for q in (1, 5, 10, 25, 50, 75, 90, 95, 99):
         print(f"  p{q}={np.percentile(valid, q):.6f}")
+
+
+def clamp_values(values, vmin=None, vmax=None):
+    if vmin is None and vmax is None:
+        return values
+    values = values.copy()
+    if vmin is not None:
+        values = np.maximum(values, vmin)
+    if vmax is not None:
+        values = np.minimum(values, vmax)
+    return values
 
 
 def main():
@@ -451,9 +538,6 @@ def main():
     output_path = args.output or os.path.join(args.ope_model_dir, "ope_value_heatmap.png")
 
     env = gym.make(env_name)
-    _, raw_observations, ope_dataset, min_v, max_v = build_norm_dataset(
-        env, env_name, dataset_path, discount
-    )
     visualization_dataset_path = resolve_arg(
         args, args.variant, "visualization_dataset_path", ""
     )
@@ -462,28 +546,41 @@ def main():
             "using separate visualization dataset for heatmap points: "
             f"{visualization_dataset_path}"
         )
-    target_policy_dataset_path = resolve_arg(args, args.variant, "target_policy_dataset_path", dataset_path)
-    if target_policy_dataset_path == dataset_path:
-        target_policy_dataset = ope_dataset
-    else:
-        _, _, target_policy_dataset, _, _ = build_norm_dataset(
-            env, env_name, target_policy_dataset_path, discount
+
+    need_policy = args.source != "dataset" or args.overlay_success_traj
+    raw_observations = None
+    ope_dataset = None
+    policy = None
+    if need_policy:
+        _, raw_observations, ope_dataset, min_v, max_v = build_norm_dataset(
+            env, env_name, dataset_path, discount
+        )
+        target_policy_dataset_path = resolve_arg(
+            args, args.variant, "target_policy_dataset_path", dataset_path
+        )
+        if target_policy_dataset_path == dataset_path:
+            target_policy_dataset = ope_dataset
+        else:
+            _, _, target_policy_dataset, _, _ = build_norm_dataset(
+                env, env_name, target_policy_dataset_path, discount
+            )
+
+        state_dim = env.observation_space.shape[0]
+        action_dim = env.action_space.shape[0]
+        policy = load_ope_policy(
+            args,
+            env_name,
+            ope_dataset,
+            target_policy_dataset,
+            min_v,
+            max_v,
+            state_dim,
+            action_dim,
         )
 
-    state_dim = env.observation_space.shape[0]
-    action_dim = env.action_space.shape[0]
-    policy = load_ope_policy(
-        args,
-        env_name,
-        ope_dataset,
-        target_policy_dataset,
-        min_v,
-        max_v,
-        state_dim,
-        action_dim,
-    )
-
     overlay_xy = None
+    values = None
+    value_name = "Predicted V(s)"
     if args.source == "rollout_success":
         raw_observations, success_xy = collect_success_rollout_states(
             policy,
@@ -508,10 +605,11 @@ def main():
                 args.rollout_max_episode_steps,
             )
     else:
-        if visualization_dataset_path:
-            raw_observations = load_visualization_observations(
-                env, visualization_dataset_path
-            )
+        visualization_dataset = load_visualization_dataset(env, visualization_dataset_path)
+        raw_observations, values = compute_returns_to_go_from_dataset(
+            visualization_dataset, discount
+        )
+        value_name = "MC Return-to-go"
         xy = raw_observations[:, :2]
         if args.overlay_success_traj:
             _, overlay_xy = collect_success_rollout_states(
@@ -522,7 +620,9 @@ def main():
                 args.rollout_max_episode_steps,
             )
 
-    values = predict_dataset_values(policy, raw_observations, ope_dataset, args.batch_size)
+    if values is None:
+        values = predict_dataset_values(policy, raw_observations, ope_dataset, args.batch_size)
+    values = clamp_values(values, args.vmin, args.vmax)
     print_value_stats("raw value stats", values)
     if args.hide_below is not None:
         values = values.copy()
@@ -560,11 +660,12 @@ def main():
         starts=starts,
         goal=goal,
         output_path=output_path,
-        title=f"OPE Value Heatmap: {env_name} ({args.source}, {args.agg})",
+        title=f"{value_name} Heatmap: {env_name} ({args.source}, {args.agg})",
         overlay_xy=overlay_xy,
         vmin=vmin,
         vmax=vmax,
         band_width=args.band_width,
+        colorbar_label=value_name,
     )
     print(f"saved heatmap to: {output_path}")
 

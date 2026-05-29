@@ -9,14 +9,13 @@ import matplotlib
 
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
-from matplotlib import colors
 import numpy as np
 import torch
 
 import d4rl
 import gym
 
-import algos.algos_v2_ope as algos
+import algos.algos_v2 as algos
 from algos.ope import build_wrapped_env, get_env_goal, get_env_start_xy
 from dataset.d4rl_dataset import D4rlDataset
 
@@ -104,11 +103,6 @@ def build_norm_dataset(env, env_name, dataset_path, discount):
     return dataset, raw_observations, norm_dataset, min_v, max_v
 
 
-def load_visualization_observations(env, dataset_path):
-    dataset = build_qlearning_dataset(env, dataset_path)
-    return np.array(dataset["observations"], dtype=np.float32)
-
-
 def load_ope_policy(
     args,
     env_name,
@@ -121,7 +115,7 @@ def load_ope_policy(
 ):
     target_policy_dir = resolve_arg(args, args.variant, "target_policy_dir")
     target_policy_name = resolve_arg(args, args.variant, "target_policy_name", "model")
-    # target_policy_mode = resolve_arg(args, args.variant, "target_policy_mode", "vae")
+    target_policy_mode = resolve_arg(args, args.variant, "target_policy_mode", "vae")
     device = resolve_arg(args, args.variant, "device", "cuda")
     discount = float(resolve_arg(args, args.variant, "discount", 0.99))
     tau = float(resolve_arg(args, args.variant, "tau", 0.005))
@@ -147,7 +141,7 @@ def load_ope_policy(
         doubleq_min=doubleq_min,
         target_policy_dir=target_policy_dir,
         target_policy_name=target_policy_name,
-        # target_policy_mode=target_policy_mode,
+        target_policy_mode=target_policy_mode,
         ope_state_mean=ope_dataset.state_mean,
         ope_state_std=ope_dataset.state_std,
         ope_action_mean=ope_dataset.action_mean,
@@ -229,38 +223,6 @@ def collect_success_rollout_states(
     return observations, xy
 
 
-def collect_maze2d_env_pose_states(env_name, pose_density=300):
-    env = gym.make(env_name)
-    base_env = env.unwrapped
-    if "maze2d" not in env_name:
-        env.close()
-        raise ValueError("env_pose source is only supported for maze2d environments.")
-    if not hasattr(base_env, "empty_and_goal_locations") or not hasattr(base_env, "set_state"):
-        env.close()
-        raise ValueError("Maze2D env does not expose empty_and_goal_locations/set_state.")
-
-    pose_density = max(int(pose_density), 1)
-    offsets = np.linspace(-0.45, 0.45, pose_density, dtype=np.float32)
-    qvel_template = np.zeros(base_env.model.nv, dtype=np.float32)
-    observations = []
-    xy_points = []
-
-    env.reset()
-    for cell in base_env.empty_and_goal_locations:
-        cell_xy = np.array(cell, dtype=np.float32)
-        for dx in offsets:
-            for dy in offsets:
-                qpos = cell_xy + np.array([dx, dy], dtype=np.float32)
-                base_env.sim.reset()
-                base_env.set_state(qpos, qvel_template)
-                obs = base_env._get_obs().astype(np.float32)
-                observations.append(obs)
-                xy_points.append(obs[:2].copy())
-
-    env.close()
-    return np.array(observations, dtype=np.float32), np.array(xy_points, dtype=np.float32)
-
-
 def build_heatmap(xy, values, grid_size, agg="mean"):
     x = xy[:, 0]
     y = xy[:, 1]
@@ -280,9 +242,6 @@ def build_heatmap(xy, values, grid_size, agg="mean"):
     counts = np.zeros((grid_size, grid_size), dtype=np.float64)
     for flat_bin, begin, end in zip(unique_bins, start_idx, end_idx):
         bucket = values_sorted[begin:end]
-        bucket = bucket[~np.isnan(bucket)]
-        if bucket.size == 0:
-            continue
         if agg == "mean":
             agg_value = float(np.mean(bucket))
         elif agg == "max":
@@ -314,36 +273,17 @@ def plot_heatmap(
     overlay_xy=None,
     vmin=None,
     vmax=None,
-    band_width=None,
 ):
     fig, ax = plt.subplots(figsize=(9, 7))
     extent = [x_edges[0], x_edges[-1], y_edges[0], y_edges[-1]]
-    image_kwargs = {
-        "origin": "lower",
-        "extent": extent,
-        "aspect": "auto",
-        "cmap": "viridis",
-        "vmin": vmin,
-        "vmax": vmax,
-    }
-    if band_width is not None and band_width > 0:
-        valid_values = heatmap[~np.isnan(heatmap)]
-        if valid_values.size > 0:
-            band_min = vmin if vmin is not None else float(np.min(valid_values))
-            band_max = vmax if vmax is not None else float(np.max(valid_values))
-            band_start = band_width * np.floor(band_min / band_width)
-            band_stop = band_width * np.ceil(band_max / band_width)
-            boundaries = np.arange(band_start, band_stop + band_width, band_width, dtype=np.float64)
-            if boundaries.size >= 2:
-                cmap = plt.get_cmap("viridis", boundaries.size - 1)
-                norm = colors.BoundaryNorm(boundaries, cmap.N, clip=True)
-                image_kwargs["cmap"] = cmap
-                image_kwargs["norm"] = norm
-                image_kwargs.pop("vmin", None)
-                image_kwargs.pop("vmax", None)
     image = ax.imshow(
         heatmap,
-        **image_kwargs,
+        origin="lower",
+        extent=extent,
+        aspect="auto",
+        cmap="viridis",
+        vmin=vmin,
+        vmax=vmax,
     )
     plt.colorbar(image, ax=ax, label="Predicted V(s)")
 
@@ -372,33 +312,12 @@ def plot_heatmap(
     plt.close(fig)
 
 
-def print_value_stats(name, values):
-    valid = values[~np.isnan(values)]
-    if valid.size == 0:
-        print(f"{name}: no valid values")
-        return
-    print(f"{name}:")
-    print(f"  count={valid.size}")
-    print(f"  min={np.min(valid):.6f}")
-    print(f"  max={np.max(valid):.6f}")
-    print(f"  mean={np.mean(valid):.6f}")
-    print(f"  median={np.median(valid):.6f}")
-    for q in (1, 5, 10, 25, 50, 75, 90, 95, 99):
-        print(f"  p{q}={np.percentile(valid, q):.6f}")
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ope_model_dir", required=True, type=str)
     parser.add_argument("--model_name", default="model", type=str)
     parser.add_argument("--env_name", default="", type=str)
     parser.add_argument("--ope_dataset_path", default="", type=str)
-    parser.add_argument(
-        "--visualization_dataset_path",
-        default="",
-        type=str,
-        help="Optional dataset used only for heatmap points when source=dataset. OPE normalization still uses ope_dataset_path.",
-    )
     parser.add_argument("--grid_size", default=400, type=int)
     parser.add_argument("--batch_size", default=4096, type=int)
     parser.add_argument("--output", default="", type=str)
@@ -406,7 +325,7 @@ def main():
     parser.add_argument(
         "--source",
         default="dataset",
-        choices=["dataset", "rollout_success", "env_pose"],
+        choices=["dataset", "rollout_success"],
         help="States used to build the heatmap.",
     )
     parser.add_argument(
@@ -422,20 +341,6 @@ def main():
     parser.add_argument("--vmax", default=None, type=float)
     parser.add_argument("--vmin_quantile", default=0.05, type=float)
     parser.add_argument("--vmax_quantile", default=0.95, type=float)
-    parser.add_argument("--hide_below", default=None, type=float)
-    parser.add_argument("--hide_above", default=None, type=float)
-    parser.add_argument(
-        "--env_pose_density",
-        default=9,
-        type=int,
-        help="Number of samples per free-cell axis when source=env_pose for maze2d.",
-    )
-    parser.add_argument(
-        "--band_width",
-        default=None,
-        type=float,
-        help="Use discrete color bands of this value width, e.g. 20 for 0-20, 20-40, ...",
-    )
     args = parser.parse_args()
 
     args.variant = load_variant(args.ope_model_dir)
@@ -454,14 +359,6 @@ def main():
     _, raw_observations, ope_dataset, min_v, max_v = build_norm_dataset(
         env, env_name, dataset_path, discount
     )
-    visualization_dataset_path = resolve_arg(
-        args, args.variant, "visualization_dataset_path", ""
-    )
-    if visualization_dataset_path:
-        print(
-            "using separate visualization dataset for heatmap points: "
-            f"{visualization_dataset_path}"
-        )
     target_policy_dataset_path = resolve_arg(args, args.variant, "target_policy_dataset_path", dataset_path)
     if target_policy_dataset_path == dataset_path:
         target_policy_dataset = ope_dataset
@@ -494,24 +391,7 @@ def main():
         )
         xy = raw_observations[:, :2]
         overlay_xy = success_xy
-    elif args.source == "env_pose":
-        raw_observations, xy = collect_maze2d_env_pose_states(
-            env_name,
-            pose_density=args.env_pose_density,
-        )
-        if args.overlay_success_traj:
-            _, overlay_xy = collect_success_rollout_states(
-                policy,
-                ope_dataset,
-                env_name,
-                args.rollout_episodes_per_start,
-                args.rollout_max_episode_steps,
-            )
     else:
-        if visualization_dataset_path:
-            raw_observations = load_visualization_observations(
-                env, visualization_dataset_path
-            )
         xy = raw_observations[:, :2]
         if args.overlay_success_traj:
             _, overlay_xy = collect_success_rollout_states(
@@ -523,14 +403,6 @@ def main():
             )
 
     values = predict_dataset_values(policy, raw_observations, ope_dataset, args.batch_size)
-    print_value_stats("raw value stats", values)
-    if args.hide_below is not None:
-        values = values.copy()
-        values[values < args.hide_below] = np.nan
-    if args.hide_above is not None:
-        values = values.copy()
-        values[values > args.hide_above] = np.nan
-    print_value_stats("displayed value stats", values)
     heatmap, counts, x_edges, y_edges = build_heatmap(xy, values, args.grid_size, agg=args.agg)
     starts, goal = collect_start_goal_points(env_name)
     valid_values = heatmap[~np.isnan(heatmap)]
@@ -544,13 +416,6 @@ def main():
             vmin = float(np.quantile(valid_values, args.vmin_quantile))
         if args.vmax_quantile is not None:
             vmax = float(np.quantile(valid_values, args.vmax_quantile))
-    if valid_values.size > 0:
-        print(
-            "heatmap color range: "
-            f"vmin={vmin if vmin is not None else 'auto'}, "
-            f"vmax={vmax if vmax is not None else 'auto'}, "
-            f"band_width={args.band_width if args.band_width is not None else 'none'}"
-        )
 
     plot_heatmap(
         heatmap=heatmap,
@@ -564,7 +429,6 @@ def main():
         overlay_xy=overlay_xy,
         vmin=vmin,
         vmax=vmax,
-        band_width=args.band_width,
     )
     print(f"saved heatmap to: {output_path}")
 

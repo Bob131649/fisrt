@@ -114,7 +114,7 @@ def build_policy(args):
         expectile=args.expectile,
         kl_beta=args.kl_beta,
         doubleq_min=args.doubleq_min,
-        policy_mode=args.policy_mode,
+        # policy_mode=args.policy_mode,
     )
     policy.load(args.model_name, args.model_dir)
     policy.eval()
