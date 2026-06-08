@@ -1,0 +1,22 @@
+{
+  "keypoints": [
+    {
+      "name": "init",
+      "frame": "global",
+      "translation": [0.45, 0.0, 0.30],
+      "quaternion": [0.0, 1.0, 0.0, 0.0]
+    },
+    {
+      "name": "grasp",
+      "frame": "global",
+      "translation": [0.50, 0.0, 0.12],
+      "quaternion": [0.0, 1.0, 0.0, 0.0]
+    },
+    {
+      "name": "place",
+      "frame": "global",
+      "translation": [0.55, 0.10, 0.16],
+      "quaternion": [0.0, 1.0, 0.0, 0.0]
+    }
+  ]
+}

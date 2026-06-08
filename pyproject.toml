@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "robot-arms"
+version = "0.1.0"
+description = "Unified control and IK helpers for Franka and Kinova arms"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [{ name = "Your Name" }]
+license = { text = "Proprietary" }
+dependencies = [
+  "numpy",
+  "scipy",
+  "torch",
+  "curobo",  # external cuRobo library providing IK/planning backends
+]
+
+[project.optional-dependencies]
+kinova = [
+  "kortex-api",  # assuming a published package name; adjust if different
+  "pylibrm; platform_system == 'Linux'",  # if available on PyPI; otherwise document install
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"robot_arms" = [
+  "descriptions/urdf/**",
+]
