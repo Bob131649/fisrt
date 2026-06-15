@@ -62,7 +62,9 @@ class Latent(nn.Module):
     def __init__(self, state_dim, action_dim, latent_dim, min_v, max_v, 
                  device, discount=0.99, tau=0.001, vae_lr=1e-4, actor_lr=1e-4, critic_lr=1e-4, 
                  max_latent_action=3, expectile=0.9, kl_beta=0.5, doubleq_min=0.8,
-                 target_policy_dir="", target_policy_name="model", target_policy_mode="lapo"):
+                 target_policy_dir="", target_policy_name="model", target_policy_mode="lapo",
+                 ope_ref_dir="", ope_ref_name="model", ope_ref_clip=None,
+                 ope_ref_state_mean=None, ope_ref_state_std=None):
         super(Latent, self).__init__()
 
         self.device = torch.device(device)
@@ -70,6 +72,7 @@ class Latent(nn.Module):
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr, weight_decay=1e-5)
 
+        self.state_dim = state_dim
         self.latent_dim = latent_dim
         self.max_latent_action = max_latent_action
         self.action_dim = action_dim
@@ -87,6 +90,17 @@ class Latent(nn.Module):
 
         self.min_v, self.max_v = min_v, max_v 
         self.ope_mode = bool(target_policy_dir)
+        self.ope_ref_value = None
+        self.ope_ref_clip = ope_ref_clip
+        self.ope_ref_state_mean = None
+        self.ope_ref_state_std = None
+        if ope_ref_state_mean is not None and ope_ref_state_std is not None:
+            self.ope_ref_state_mean = torch.as_tensor(
+                ope_ref_state_mean, dtype=torch.float32, device=self.device
+            )
+            self.ope_ref_state_std = torch.as_tensor(
+                ope_ref_state_std, dtype=torch.float32, device=self.device
+            )
 
         if self.ope_mode:
             if target_policy_mode == "vae":
@@ -123,6 +137,9 @@ class Latent(nn.Module):
             self.actor = Actor(state_dim, latent_dim, max_latent_action).to(self.device)
             self.actor_target = copy.deepcopy(self.actor)
             self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr, weight_decay=1e-5)
+
+            if ope_ref_dir:
+                self.load_ope_value(ope_ref_name, ope_ref_dir, ope_ref_clip)
 
     def copy_bn_param(self):
         if self.ope_mode:
@@ -178,6 +195,25 @@ class Latent(nn.Module):
         with torch.no_grad():
             return self.value(states)
 
+    def load_ope_value(self, filename, directory, clip_value=None):
+        if self.ope_mode:
+            raise RuntimeError("Reference OPE value is only used in offline RL mode.")
+
+        self.ope_ref_value = OPEValue(self.state_dim).to(self.device)
+        self.ope_ref_value.load_state_dict(
+            torch.load(f"{directory}/{filename}_value.pth", map_location=self.device)
+        )
+        self.ope_ref_value.eval()
+        for param in self.ope_ref_value.parameters():
+            param.requires_grad_(False)
+        self.ope_ref_clip = clip_value
+        return self.ope_ref_value
+
+    def normalize_ope_ref_state(self, raw_state):
+        if self.ope_ref_state_mean is None or self.ope_ref_state_std is None:
+            return raw_state
+        return (raw_state - self.ope_ref_state_mean) / (self.ope_ref_state_std + 0.000001)
+
     def train_step(self, batch, iter_id, ):
         state = batch['state'].to(self.device).float()
         action = batch['action'].to(self.device).float()
@@ -224,7 +260,22 @@ class Latent(nn.Module):
         with torch.no_grad():
             next_target_v = self.get_pi_q(next_state, self.actor_target, self.critic_target, 
                                           self.actor_vae_target, use_noise=True)     
-            target_q = reward + not_done * self.discount * next_target_v.clamp(self.min_v, self.max_v)
+            next_backup_v = next_target_v
+            if self.ope_ref_value is not None:
+                if self.ope_ref_state_mean is not None and 'raw_next_state' in batch:
+                    next_ref_state = self.normalize_ope_ref_state(
+                        batch['raw_next_state'].to(self.device).float()
+                    )
+                else:
+                    next_ref_state = next_state
+                next_ref_v = self.ope_ref_value(next_ref_state)
+                if self.ope_ref_clip is not None and self.ope_ref_clip > 0:
+                    next_ref_v = next_ref_v.clamp(0, self.ope_ref_clip)
+                next_backup_v = torch.max(next_backup_v, next_ref_v)
+
+            # Reference-anchored Bellman backup:
+            # y = r_task + gamma * max(Q_targ(s', pi(s')), bounded V_ref(s'))
+            target_q = reward + not_done * self.discount * next_backup_v.clamp(self.min_v, self.max_v)
 
         # Critic Training
         current_q1, current_q2 = self.critic(state, action)
@@ -260,7 +311,8 @@ class Latent(nn.Module):
             free_bits_tensor = torch.tensor(free_bits, device=kl_per_dim.device)
             kl_freebits = torch.maximum(kl_per_dim, free_bits_tensor)
             kld_loss = kl_freebits.sum(dim=1).view(-1, 1)
-            actor_vae_loss = recon_loss + self.kl_beta * kld_loss
+            # actor_vae_loss = recon_loss + self.kl_beta * kld_loss
+            actor_vae_loss = (recon_loss + self.kl_beta * kld_loss)*weight.view(-1,1)
 
             actor_vae_loss = actor_vae_loss.mean()
             self.actorvae_optimizer.zero_grad()
@@ -269,8 +321,12 @@ class Latent(nn.Module):
             self.actorvae_optimizer.step()
 
             # Update Target Networks
-            loss_rc = recons_loss_ori.mean().item()
-            loss_kl = kld_loss.mean().item()
+            # loss_rc = recons_loss_ori.mean().item()
+            # loss_kl = kld_loss.mean().item()
+            # a_loss = q_pi.mean().item()
+
+            loss_rc = (recons_loss_ori*weight.view(-1,1)).mean().item()
+            loss_kl = (kld_loss*weight.view(-1,1)).mean().item()
             a_loss = q_pi.mean().item()
 
         if iter_id % 2 == 0:
