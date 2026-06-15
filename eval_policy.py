@@ -145,7 +145,7 @@ def main():
     parser.add_argument("--model_dir", required=True, type=str)
     parser.add_argument("--model_name", default="model", type=str)
     parser.add_argument("--dataset_path", default="", type=str)
-    parser.add_argument("--episodes_per_start", default=5, type=int)
+    parser.add_argument("--episodes_per_start", default=100, type=int)
     parser.add_argument("--seed", default=789, type=int)
     parser.add_argument("--device", default="cuda", type=str)
     parser.add_argument("--policy_mode", default="vae", choices=["lapo", "vae", "vae_bc"], type=str)

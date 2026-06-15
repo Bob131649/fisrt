@@ -5,7 +5,7 @@ import numpy.linalg as LA
 
 class D4rlDataset(Dataset):
     """A simple image dataset class."""
-    def __init__(self, data, env_name):
+    def __init__(self, data, env_name, relabel_sparse_reward=False):
         self.n_episodes = 0
 
         self.states = []
@@ -14,33 +14,34 @@ class D4rlDataset(Dataset):
         self.rewards = []
         self.not_dones = []
 
-        self.load(data, env_name)
+        self.load(data, env_name, relabel_sparse_reward)
         self.size = len(self.states)
 
         print('dataset size:', len(self.states))
 
-    def load(self, data, env_name):
+    def load(self, data, env_name, relabel_sparse_reward):
         assert('next_observations' in data.keys())
         dataset_size = data['observations'].shape[0]
 
         GOAL = np.array([32.0, 24.0]) if 'antmaze' in env_name else np.array([7.0,9.0])
 
         for i in range(0, dataset_size):
-            next_state_pos = data['next_observations'][i][:2]
-            distance_to_goal = LA.norm(next_state_pos - GOAL)
-            if distance_to_goal < 0.5:
-                reward = 100.0
-                terminal = 1
-                # print(data['terminals'][i])
+            if relabel_sparse_reward:
+                next_state_pos = data['next_observations'][i][:2]
+                distance_to_goal = LA.norm(next_state_pos - GOAL)
+                if distance_to_goal < 0.5:
+                    reward = 100.0
+                    terminal = 1
+                else:
+                    reward = 0.0
+                    terminal = 0
             else:
-                reward = 0.0
-                terminal = 0
+                reward = data['rewards'][i]
+                terminal = data['terminals'][i]
 
             self.states.append(data['observations'][i])
             self.next_states.append(data['next_observations'][i])
             self.actions.append(data['actions'][i])
-            # self.rewards.append([data['rewards'][i]])
-            # self.not_dones.append([1 - data['terminals'][i]])
             self.rewards.append([reward])
             self.not_dones.append([1 - terminal])
 

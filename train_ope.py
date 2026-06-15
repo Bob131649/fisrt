@@ -63,7 +63,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_model", default=True, type=bool)
     parser.add_argument("--save_freq", default=1, type=int)
     parser.add_argument("--env_name", default="maze2d-large-v1")
-    parser.add_argument("--dataset_path", default="", type=str)
+    # parser.add_argument("--dataset_path", default="", type=str)
     parser.add_argument("--ope_dataset_path", default="", type=str, help="The dataset will be used for OPE training and evaluation.")
     parser.add_argument("--target_policy_dataset_path", default="", type=str, help="The dataset trained traget policy will be used for normalization.")
     parser.add_argument("--seed", default=789, type=int)

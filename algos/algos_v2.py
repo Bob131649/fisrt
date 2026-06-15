@@ -69,8 +69,11 @@ class Latent(nn.Module):
         return kld_loss
 
     def get_pi_q(self, state, actor_net, critic_net, gen_net, type='none', use_noise=True):
-        latent_action = actor_net(state)
-        if use_noise:
+        if actor_net is None:
+            latent_action = None
+        else:
+            latent_action = actor_net(state)
+        if use_noise and latent_action is not None:
             latent_action += (torch.randn_like(latent_action) * 0.1).clamp(-0.3, 0.3)
 
         actor_action = gen_net.decode(state, z=latent_action)
@@ -98,9 +101,15 @@ class Latent(nn.Module):
         not_done = batch['not_done'].to(self.device).view(-1,1)
 
         with torch.no_grad():
-            next_target_v = self.get_pi_q(next_state, self.actor_target, self.critic_target, 
-                                          self.actor_vae_target, use_noise=True)     
-            target_q = reward + not_done * self.discount * next_target_v.clamp(self.min_v, self.max_v)
+            next_target_v = self.get_pi_q(
+                next_state,
+                None,
+                self.critic_target,
+                self.actor_vae_target,
+                use_noise=False,
+            )
+            target_q = reward + not_done * self.discount * next_target_v
+            target_q = target_q.clamp(self.min_v, self.max_v)
 
         # Critic Training
         current_q1, current_q2 = self.critic(state, action)
@@ -120,7 +129,7 @@ class Latent(nn.Module):
                 q1_a, q2_a = self.critic(state, action)
                 # q_a = torch.min(q1_a, q2_a)
                 q_a = (q1_a + q2_a)/2
-                q_pi = self.get_pi_q(state, self.actor, self.critic, self.actor_vae,
+                q_pi = self.get_pi_q(state, None, self.critic, self.actor_vae,
                                      type='min', use_noise=False)
                 adv = q_a - q_pi
                 weight = torch.where(adv < 0, 1-self.expectile, self.expectile).detach()
