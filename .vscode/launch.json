@@ -1,0 +1,45 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+        "name": "Debug train_shape_reward",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/train_shape_reward.py",
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal",
+        "justMyCode": false,
+        "args": [
+            "--ExpID",
+            "527",
+            "--env_name",
+            "maze2d-large-v1",
+            "--ope_ref_dir",
+            "../LAPO-offlienRL_without_Actor/results/Exp0527/maze2d-large-v1_ope-random/",
+            "--plot"
+        ]
+        },
+
+        {
+            "name": "Debug train_shape_reward",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/train_shape_reward.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--ExpID",
+                "527",
+                "--env_name",
+                "maze2d-large-v1",
+                "--ope_ref_dir",
+                "../LAPO-offlienRL_without_Actor/results/Exp0527/maze2d-large-v1_ope-random/",
+                "--plot"
+        ]
+        }
+    ]
+}

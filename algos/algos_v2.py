@@ -340,7 +340,7 @@ class Latent(nn.Module):
 
             actor_qloss = -q_pi.mean()
             actor_reg_loss = torch.mean(latent_actor_action ** 2)
-            actor_loss = actor_qloss + actor_reg_loss
+            actor_loss = (actor_qloss + actor_reg_loss)*0.5
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()

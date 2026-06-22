@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from networks.net_v2 import Actor, Critic, ActorVAE, OPEValue
-from networks.obs_encoder import RobomimicObsEncoder
+from networks.obs_encoder import FiLMObsEncoder, build_obs_encoder
 
 
 class FrozenPolicy(nn.Module):
@@ -22,17 +22,14 @@ class FrozenPolicy(nn.Module):
         latent_dim,
         max_latent_action,
         device,
-        policy_mode="lapo",
     ):
         super().__init__()
         self.device = torch.device(device)
-        self.policy_mode = policy_mode
         self.actor_vae = ActorVAE(
             state_dim, action_dim, latent_dim, max_latent_action, self.device
         ).to(self.device)
         self.actor = None
-        if policy_mode == "lapo":
-            self.actor = Actor(state_dim, latent_dim, max_latent_action).to(self.device)
+        self.actor = Actor(state_dim, latent_dim, max_latent_action).to(self.device)
 
     def load(self, filename, directory):
         self.actor_vae.load_state_dict(
@@ -63,8 +60,8 @@ class FrozenPolicy(nn.Module):
 
 class Latent(nn.Module):
     def __init__(self, state_dim, action_dim, latent_dim, min_v, max_v, vae,
-                 device, discount=0.99, tau=0.001, vae_lr=1e-4, actor_lr=1e-4, critic_lr=1e-4, 
-                 max_latent_action=3, expectile=0.9, kl_beta=0.5, doubleq_min=0.8,
+                 device, discount=0.99, tau=0.005, vae_lr=2e-4, actor_lr=2e-4, critic_lr=2e-4, 
+                 max_latent_action=0.675, expectile=0.9, kl_beta=1.0, doubleq_min=1.0,
                  target_policy_dir="", target_policy_name="model", target_policy_mode="lapo",
                  ope_ref_dir="", ope_ref_name="model", ope_ref_clip=None,
                  ope_ref_state_mean=None, ope_ref_state_std=None,
@@ -73,24 +70,51 @@ class Latent(nn.Module):
                  use_robomimic_obs_encoder=False, image_shape=(3, 224, 224),
                  robomimic_feature_dim=256, robomimic_crop_shape=None,
                  robomimic_backbone_class="ResNet18Conv",
-                 robomimic_pool_class="SpatialSoftmax"):
+                 robomimic_pool_class="SpatialSoftmax",
+                 encoder_mode="robomimic",
+                 concat_mode="default",
+                 zipper_backbone="resnet18",
+                 zipper_normalize_image=True):
         super(Latent, self).__init__()
 
         self.device = torch.device(device)
         self.vae = vae
 
-        obs_encoder = RobomimicObsEncoder(
-            image_shape=image_shape,
-            proprio_dim=state_dim,
-            image_key=obs_image_key,
-            proprio_key=obs_proprio_key,
-            feature_dim=robomimic_feature_dim,
-            crop_shape=robomimic_crop_shape,
-            backbone_class=robomimic_backbone_class,
-            pool_class=robomimic_pool_class,
-        )
+        # print("Initializing Latent model with encoder_mode:", encoder_mode)
+        if concat_mode == "default":
+            obs_encoder = build_obs_encoder(
+                encoder_mode=encoder_mode,
+                image_shape=image_shape,
+                proprio_dim=state_dim,
+                image_key=obs_image_key,
+                proprio_key=obs_proprio_key,
+                robomimic_feature_dim=robomimic_feature_dim,
+                robomimic_crop_shape=robomimic_crop_shape,
+                robomimic_backbone_class=robomimic_backbone_class,
+                robomimic_pool_class=robomimic_pool_class,
+                zipper_backbone=zipper_backbone,
+                zipper_normalize_image=zipper_normalize_image,
+            )
+        elif concat_mode == "film":
+            obs_encoder = FiLMObsEncoder(
+                encoder_mode=encoder_mode,
+                image_shape=image_shape,
+                proprio_dim=state_dim,
+                image_key=obs_image_key,
+                proprio_key=obs_proprio_key,
+                feature_dim=robomimic_feature_dim,
+                crop_shape=robomimic_crop_shape,
+                backbone_class=robomimic_backbone_class,
+                pool_class=robomimic_pool_class,
+                zipper_backbone=zipper_backbone,
+                zipper_normalize_image=zipper_normalize_image,
+            )
+        else:
+            raise ValueError("concat_mode must be 'default' or 'film'.")
         
         obs_feature_dim = obs_encoder.output_dim
+        if isinstance(obs_feature_dim, (tuple, list)):
+            obs_feature_dim = int(np.prod(obs_feature_dim))
 
         self.obs_encoder = obs_encoder.to(self.device)
         self.obs_encoder_target = copy.deepcopy(self.obs_encoder)
@@ -244,13 +268,16 @@ class Latent(nn.Module):
                 if image.max() > 1:
                     image = image / 255.0
             state = self._obs_feature(state, image=image, obs=obs)
+            
+            if self.vae:
+                latent_a = None
+            else:
+                latent_a = self.actor(state)
+            # print("latent_a", latent_a)
+            
             if self.ope_mode:
                 action = self.target_policy.select_action_tensor(state)
             else:
-                if self.vae:
-                    latent_a = self.actor(state)
-                else:
-                    latent_a = None
                 action = self.actor_vae.decode(state, z=latent_a)
             q1, q2 = self.critic(state, action)
             # v = self.critic.v(state)
@@ -262,8 +289,15 @@ class Latent(nn.Module):
         return kld_loss
 
     def get_pi_q(self, state, actor_net, critic_net, gen_net, type='none', use_noise=True):
-        latent_action = actor_net(state)
-        if use_noise:
+
+        if self.vae:
+            latent_action = None
+            # print("Using VAE with no latent action.")
+        else:
+            latent_action = actor_net(state)
+            # print("actor_net output (latent_action)", latent_action)
+        # print("latent_action", latent_action)
+        if use_noise and latent_action is not None:
             latent_action += (torch.randn_like(latent_action) * 0.1).clamp(-0.3, 0.3)
 
         actor_action = gen_net.decode(state, z=latent_action)

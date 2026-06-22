@@ -69,7 +69,7 @@ class FixedResetWrapper(gym.Wrapper):
         start_format=None,
         goal_format=None,
         start_noise_scale=0.1,
-        goal_noise_scale=0.1,
+        goal_noise_scale=0,
     ):
         super().__init__(env)
         self.fixed_starts = None

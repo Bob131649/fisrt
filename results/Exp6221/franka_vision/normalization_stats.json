@@ -1,0 +1,64 @@
+{
+  "state_mean": [
+    0.5240245461463928,
+    -0.15643486380577087,
+    0.11288949102163315,
+    -0.003700661240145564,
+    0.335260808467865,
+    -0.008197903633117676,
+    0.9417548775672913,
+    0.023561736568808556
+  ],
+  "state_std": [
+    0.0196205023676157,
+    0.04531901702284813,
+    0.01313062198460102,
+    0.015957076102495193,
+    0.008416933938860893,
+    0.016327055171132088,
+    0.0030503515154123306,
+    0.012895273976027966
+  ],
+  "action_mean": [
+    0.0016699442639946938,
+    0.001448761555366218,
+    -0.0005637318245135248,
+    -0.0002082463906845078,
+    0.000501681468449533,
+    0.0009553843410685658,
+    -0.00015652249567210674,
+    -0.0008811490843072534
+  ],
+  "action_std": [
+    0.0028604220133274794,
+    0.003382462542504072,
+    0.0021838252432644367,
+    0.001628196332603693,
+    0.0011820816434919834,
+    0.001955474494025111,
+    0.0004149156447965652,
+    0.002821826608851552
+  ],
+  "state_dim": 8,
+  "action_dim": 8,
+  "action_type": "threshold_delta_eef",
+  "normalize_proprio": true,
+  "normalize_action": true,
+  "image_size": [
+    224,
+    224
+  ],
+  "rgb_crop": [
+    0,
+    90,
+    360,
+    480
+  ],
+  "dataset_path": [
+    "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep24_20260617_171251.hdf5",
+    "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep17_20260616_202143.hdf5",
+    "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep19_20260617_114829.hdf5",
+    "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep25_20260617_151011.hdf5",
+    "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep31_early.hdf5"
+  ]
+}

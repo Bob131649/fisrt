@@ -8,12 +8,19 @@ import sys
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from tqdm.auto import tqdm
 
 import algos.algos_v2_vision as algos
 from dataset.franka_dataset import FrankaImageDataset
 from logger import logger, setup_logger
+from vision_eval.loss_plot import (
+    NoAugmentSubset,
+    chain_threshold_episodes,
+    evaluate_vae_validation,
+    save_epoch_loss_plot,
+    split_train_val_episode_indices,
+)
 
 
 class TeeStream:
@@ -32,6 +39,12 @@ class TeeStream:
 
 def safe_mean(values):
     return float(np.mean(values)) if values else float("nan")
+
+
+def format_dim_values(values, precision=6):
+    if values is None:
+        return "[]"
+    return "[" + ", ".join(f"{float(value):.{precision}g}" for value in values) + "]"
 
 
 def str2bool(value):
@@ -61,7 +74,7 @@ def get_last_logged_epoch(log_dir):
     return last_epoch
 
 
-def get_best_logged_metric(log_dir, metric_name="L_Crit"):
+def get_best_logged_metric(log_dir, metric_name="L_Recon"):
     meta_path = os.path.join(log_dir, "model_best_meta.json")
     if os.path.isfile(meta_path):
         with open(meta_path, "r") as meta_file:
@@ -87,63 +100,61 @@ def get_best_logged_metric(log_dir, metric_name="L_Crit"):
 
 
 if __name__ == "__main__":
+    default_dataset_paths = [
+        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep24_20260617_171251.hdf5",
+        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep17_20260616_202143.hdf5",
+        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep19_20260617_114829.hdf5",
+        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep25_20260617_151011.hdf5",
+        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep31_early.hdf5",
+    ]
+    defaults = {
+        "save_model": True,
+        "reward_scale": 100.0,
+        "success_reward": 1.0,
+        "normalize_proprio": True,
+        "normalize_action": True,
+        "min_v": None,
+        "max_v": None,
+        "val_batch_size": None,
+        "val_chain_threshold_transitions": True,
+        "eval_loss_plot_freq": 1,
+        "pin_memory": False,
+    }
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--ExpID", default=1, type=int)
     parser.add_argument("--exp_name", default="franka_vision", type=str)
     parser.add_argument("--log_dir", default="./results/", type=str)
-    parser.add_argument("--dataset_path", required=True, type=str)
+    parser.add_argument("--dataset_path", default=default_dataset_paths, nargs="+", type=str)
     parser.add_argument("--load_model", default=0, type=int)
     parser.add_argument("--resume", nargs="?", const=True, default=False, type=str2bool)
     parser.add_argument("--model_dir", default="", type=str)
     parser.add_argument("--load_best", nargs="?", const=True, default=False, type=str2bool)
-    parser.add_argument("--save_model", default=True, type=bool)
     parser.add_argument("--save_freq", default=1, type=int)
     parser.add_argument("--seed", default=789, type=int)
-    parser.add_argument("--max_timesteps", default=1e5, type=float)
-    parser.add_argument("--steps_per_epoch", default=1000, type=int)
+    parser.add_argument("--max_timesteps", default=1e4, type=float)
+    parser.add_argument("--steps_per_epoch", default=500, type=int)
     parser.add_argument("--batch_size", default=256, type=int)
+    parser.add_argument("--val_fraction", default=0.1, type=float)
     parser.add_argument("--num_workers", default=0, type=int)
-    parser.add_argument("--pin_memory", action="store_true")
     parser.add_argument("--image_size", nargs=2, default=(224, 224), type=int)
-    parser.add_argument("--action_mode", default="absolute_eef", type=str)
-    parser.add_argument("--reward_scale", default=100.0, type=float)
-    parser.add_argument("--success_reward", default=1.0, type=float)
-    parser.add_argument("--min_v", default=None, type=float)
-    parser.add_argument("--max_v", default=None, type=float)
-    parser.add_argument("--normalize_proprio", default=True, type=bool)
-    parser.add_argument("--normalize_action", default=True, type=bool)
-
-    parser.add_argument("--vae_lr", default=2e-4, type=float)
-    parser.add_argument("--actor_lr", default=2e-4, type=float)
-    parser.add_argument("--critic_lr", default=2e-4, type=float)
-    parser.add_argument("--obs_encoder_lr", default=None, type=float)
-    parser.add_argument("--tau", default=0.005, type=float)
-    parser.add_argument("--discount", default=0.99, type=float)
-    parser.add_argument("--expectile", default=0.9, type=float)
-    parser.add_argument("--kl_beta", default=1.0, type=float)
-    parser.add_argument("--max_latent_action", default=0.675, type=float)
-    parser.add_argument("--doubleq_min", default=1.0, type=float)
-
-    parser.add_argument("--robomimic_feature_dim", default=256, type=int)
-    parser.add_argument("--robomimic_crop_shape", nargs=2, default=None, type=int)
-    parser.add_argument("--robomimic_backbone_class", default="ResNet18Conv", type=str)
-    parser.add_argument("--robomimic_pool_class", default="SpatialSoftmax", type=str)
-
-    parser.add_argument("--ope_ref_dir", default="", type=str)
-    parser.add_argument("--ope_ref_name", default="model", type=str)
-    parser.add_argument("--ope_ref_clip", default=100.0, type=float)
+    parser.add_argument("--encoder_mode", default="zipper", choices=["robomimic", "zipper"])
+    parser.add_argument("--zipper_backbone", default="resnet18", choices=["resnet18", "resnet50"], type=str)
+    parser.add_argument("--zipper_normalize_image", nargs="?", const=True, default=True, type=str2bool)
     parser.add_argument("--device", default="cuda", type=str)
     parser.add_argument("--terminal_log_path", default="", type=str)
-    parser.add_argument("--vae",default=False, type=bool)
+    parser.add_argument("--vae", action="store_true")
+    parser.add_argument("--concat_mode", default="default", choices=["default", "film"],type=str)
     args = parser.parse_args()
 
-    if not os.path.isfile(args.dataset_path):
-        raise FileNotFoundError(f"Dataset file not found: {args.dataset_path}")
+    for dataset_path in args.dataset_path:
+        if not os.path.isfile(dataset_path):
+            raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
 
     file_name = f"Exp{args.ExpID:04d}/{args.exp_name}"
     folder_name = os.path.join(args.log_dir, file_name)
     start_epoch = 0
-    best_critic_loss = float("inf")
+    best_recon_loss = float("inf")
     if args.resume:
         if not args.model_dir:
             raise ValueError("--model_dir must be set when --resume is true")
@@ -151,10 +162,10 @@ if __name__ == "__main__":
         if not os.path.isdir(folder_name):
             raise FileNotFoundError(f"Resume model_dir not found: {folder_name}")
         start_epoch = get_last_logged_epoch(folder_name) + 1
-        best_critic_loss = get_best_logged_metric(folder_name)
+        best_recon_loss = get_best_logged_metric(folder_name)
         print(f"resume enabled, loading checkpoint from: {folder_name}")
         print(f"resume training from epoch: {start_epoch}")
-        print(f"current best critic loss: {best_critic_loss}")
+        print(f"current best recon loss: {best_recon_loss}")
     os.makedirs(folder_name, exist_ok=True)
 
     if os.path.exists(os.path.join(folder_name, "progress.csv")):
@@ -170,12 +181,14 @@ if __name__ == "__main__":
         print(f"terminal output is being saved to: {terminal_log_path}")
 
     variant = vars(args)
+    variant.update(defaults)
     variant.update(node=os.uname()[1])
     setup_logger(os.path.basename(folder_name), variant=variant, log_dir=folder_name)
 
+    policy_kwargs = {}
     if args.vae:
-        args.expectile = 0.5
-        print("Training with VAE,and expectile is ",args.expectile)
+        policy_kwargs["expectile"] = 0.5
+        print("Training with VAE,and expectile is ", policy_kwargs["expectile"])
         
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -184,11 +197,10 @@ if __name__ == "__main__":
     dataset = FrankaImageDataset(
         args.dataset_path,
         image_size=image_size,
-        reward_scale=args.reward_scale,
-        success_reward=args.success_reward,
-        action_mode=args.action_mode,
-        normalize_proprio=args.normalize_proprio,
-        normalize_action=args.normalize_action,
+        reward_scale=defaults["reward_scale"],
+        success_reward=defaults["success_reward"],
+        normalize_proprio=defaults["normalize_proprio"],
+        normalize_action=defaults["normalize_action"],
     )
     normalization_stats = {
         "state_mean": dataset.state_mean.astype(float).tolist(),
@@ -197,11 +209,12 @@ if __name__ == "__main__":
         "action_std": dataset.action_std.astype(float).tolist(),
         "state_dim": int(dataset.state_dim),
         "action_dim": int(dataset.action_dim),
-        "action_mode": args.action_mode,
-        "normalize_proprio": bool(args.normalize_proprio),
-        "normalize_action": bool(args.normalize_action),
+        "action_type": "threshold_delta_eef",
+        "normalize_proprio": bool(defaults["normalize_proprio"]),
+        "normalize_action": bool(defaults["normalize_action"]),
         "image_size": list(dataset.image_size),
-        "dataset_path": os.path.abspath(args.dataset_path),
+        "rgb_crop": [0, 90, 360, 480],
+        "dataset_path": [os.path.abspath(path) for path in args.dataset_path],
     }
     normalization_stats_path = os.path.join(folder_name, "normalization_stats.json")
     with open(normalization_stats_path, "w") as stats_file:
@@ -212,11 +225,17 @@ if __name__ == "__main__":
     action_dim = dataset.action_dim
     image_shape = (3, image_size[0], image_size[1])
     latent_dim = int(action_dim * 2)
-    min_v = 0.0 if args.min_v is None else args.min_v
-    if args.max_v is None:
-        max_v = float(max(dataset.rewards.max(), args.reward_scale * args.success_reward, 1.0))
+    min_v = 0.0 if defaults["min_v"] is None else defaults["min_v"]
+    if defaults["max_v"] is None:
+        max_v = float(
+            max(
+                dataset.rewards.max(),
+                defaults["reward_scale"] * defaults["success_reward"],
+                1.0,
+            )
+        )
     else:
-        max_v = args.max_v
+        max_v = defaults["max_v"]
 
     print(
         "vision train dims:",
@@ -224,20 +243,52 @@ if __name__ == "__main__":
         f"state_dim={state_dim}",
         f"action_dim={action_dim}",
         f"latent_dim={latent_dim}",
+        f"encoder_mode={args.encoder_mode}",
+        f"concat_mode={args.concat_mode}",
+        f"zipper_backbone={args.zipper_backbone}",
         f"value_range=[{min_v:.3f}, {max_v:.3f}]",
     )
 
+    train_indices, val_indices, val_episodes = split_train_val_episode_indices(
+        dataset, args.val_fraction, args.seed
+    )
+    raw_val_size = len(val_indices)
+    if defaults["val_chain_threshold_transitions"] and val_episodes:
+        val_episodes = chain_threshold_episodes(dataset, val_episodes)
+        val_indices = [idx for episode in val_episodes for idx in episode]
+    train_dataset = Subset(dataset, train_indices)
+    val_dataset = NoAugmentSubset(dataset, val_indices)
+    val_batch_size = defaults["val_batch_size"] or args.batch_size
+    eval_loss_plot_dir = os.path.join(folder_name, "eval_loss_plots")
+    print(
+        "dataset split:",
+        f"train={len(train_dataset)}",
+        f"val={len(val_dataset)}",
+        f"raw_val={raw_val_size}",
+        f"val_episodes={len(val_episodes)}",
+        f"val_fraction={args.val_fraction}",
+        f"val_chain_threshold={defaults['val_chain_threshold_transitions']}",
+    )
+
     dataloader = DataLoader(
-        dataset,
+        train_dataset,
         sampler=torch.utils.data.RandomSampler(
-            dataset,
+            train_dataset,
             num_samples=args.batch_size * args.steps_per_epoch,
             replacement=True,
         ),
         batch_size=args.batch_size,
         num_workers=args.num_workers,
-        pin_memory=args.pin_memory,
+        pin_memory=defaults["pin_memory"],
         drop_last=True,
+    )
+    val_dataloader = DataLoader(
+        val_dataset,
+        batch_size=val_batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        pin_memory=defaults["pin_memory"],
+        drop_last=False,
     )
 
     policy = algos.Latent(
@@ -247,27 +298,13 @@ if __name__ == "__main__":
         min_v,
         max_v,
         device=args.device,
-        discount=args.discount,
-        tau=args.tau,
-        vae_lr=args.vae_lr,
-        actor_lr=args.actor_lr,
-        critic_lr=args.critic_lr,
-        obs_encoder_lr=args.obs_encoder_lr,
-        max_latent_action=args.max_latent_action,
-        expectile=args.expectile,
-        kl_beta=args.kl_beta,
-        doubleq_min=args.doubleq_min,
         image_shape=image_shape,
-        robomimic_feature_dim=args.robomimic_feature_dim,
-        robomimic_crop_shape=tuple(args.robomimic_crop_shape)
-        if args.robomimic_crop_shape is not None
-        else None,
-        robomimic_backbone_class=args.robomimic_backbone_class,
-        robomimic_pool_class=args.robomimic_pool_class,
-        ope_ref_dir=args.ope_ref_dir,
-        ope_ref_name=args.ope_ref_name,
-        ope_ref_clip=args.ope_ref_clip,
+        encoder_mode=args.encoder_mode,
+        concat_mode=args.concat_mode,
+        zipper_backbone=args.zipper_backbone,
+        zipper_normalize_image=args.zipper_normalize_image,
         vae=args.vae,
+        **policy_kwargs,
     )
 
     if args.resume:
@@ -305,30 +342,84 @@ if __name__ == "__main__":
                     )
 
             mean_crit = safe_mean(crit_list)
-            is_best = np.isfinite(mean_crit) and mean_crit < best_critic_loss
+            mean_recon = safe_mean(rec_list)
+            val_metrics = evaluate_vae_validation(policy, val_dataloader)
+            plot_info = None
+            if (
+                defaults["eval_loss_plot_freq"] > 0
+                and epoch_idx % defaults["eval_loss_plot_freq"] == 0
+            ):
+                plot_info = save_epoch_loss_plot(
+                    policy,
+                    dataset,
+                    val_episodes,
+                    epoch_idx,
+                    eval_loss_plot_dir,
+                    batch_size=val_batch_size,
+                    seed=args.seed,
+                )
+                if plot_info is not None:
+                    print(
+                        "saved eval loss plot:",
+                        plot_info["path"],
+                        f"episode={plot_info['episode']}",
+                        f"dataset={plot_info['dataset']}",
+                        f"dataset_episode={plot_info['dataset_episode']}",
+                        f"frames={plot_info['raw_start']}..{plot_info['raw_end']}",
+                        f"transitions={plot_info['transitions']}",
+                        f"recon={plot_info['recon']:.6f}",
+                        f"raw_recon={plot_info['raw_recon']:.6f}",
+                        f"raw_dim_mse={format_dim_values(plot_info['raw_recon_dim_mse'])}",
+                        f"raw_dim_rmse={format_dim_values(plot_info['raw_recon_dim_rmse'])}",
+                        f"kl={plot_info['kl']:.6f}",
+                    )
+                elif not val_episodes:
+                    print("skip eval loss plot: no validation episodes were found")
+            is_best = np.isfinite(mean_recon) and mean_recon < best_recon_loss
             if is_best:
-                best_critic_loss = mean_crit
-                if args.save_model:
+                best_recon_loss = mean_recon
+                if defaults["save_model"]:
                     policy.save(
                         "model",
                         folder_name,
                         is_best=True,
-                        best_metric=best_critic_loss,
+                        best_metric=best_recon_loss,
                         best_epoch=int(epoch_idx),
                     )
                     print(
                         f"save best model success: epoch={epoch_idx}, "
-                        f"L_Crit={best_critic_loss:.6f}"
+                        f"L_Recon={best_recon_loss:.6f}"
                     )
 
-            if epoch_idx % args.save_freq == 0 and args.save_model and epoch_idx != 0:
+            if epoch_idx % args.save_freq == 0 and defaults["save_model"] and epoch_idx != 0:
                 policy.save("model", folder_name)
 
             logger.record_tabular("Training Epochs", int(epoch_idx))
             logger.record_tabular("L_Act", safe_mean(act_list))
             logger.record_tabular("L_Crit", mean_crit)
-            logger.record_tabular("L_Recon", safe_mean(rec_list))
+            logger.record_tabular("L_Recon", mean_recon)
             logger.record_tabular("L_KL", safe_mean(kl_list))
+            logger.record_tabular("Val_Recon", val_metrics["recon"])
+            logger.record_tabular("Val_Recon_Sum", val_metrics["recon_sum"])
+            logger.record_tabular("Val_Raw_Recon", val_metrics["raw_recon"])
+            logger.record_tabular("Val_Raw_Recon_Sum", val_metrics["raw_recon_sum"])
+            for dim, value in enumerate(val_metrics["raw_recon_dim_mse"]):
+                logger.record_tabular(f"Val_Raw_Recon_Dim{dim}_MSE", value)
+            for dim, value in enumerate(val_metrics["raw_recon_dim_rmse"]):
+                logger.record_tabular(f"Val_Raw_Recon_Dim{dim}_RMSE", value)
+            logger.record_tabular("Val_KL", val_metrics["kl"])
+            logger.record_tabular(
+                "Val_Plot_Recon",
+                plot_info["recon"] if plot_info is not None else float("nan"),
+            )
+            logger.record_tabular(
+                "Val_Plot_Raw_Recon",
+                plot_info["raw_recon"] if plot_info is not None else float("nan"),
+            )
+            logger.record_tabular(
+                "Val_Plot_KL",
+                plot_info["kl"] if plot_info is not None else float("nan"),
+            )
             logger.record_tabular("Weight", safe_mean(w_list))
             logger.record_tabular("kl", policy.kl_beta)
             logger.dump_tabular()
@@ -339,6 +430,9 @@ if __name__ == "__main__":
                 crit=safe_mean(crit_list),
                 rec=safe_mean(rec_list),
                 kl=safe_mean(kl_list),
+                val_rec=val_metrics["recon"],
+                val_raw_rec=val_metrics["raw_recon"],
+                val_kl=val_metrics["kl"],
             )
 
     policy.save("model", folder_name)

@@ -113,7 +113,7 @@ def main():
     parser.add_argument("--env_name", default="maze2d-large-v1", type=str)
     parser.add_argument("--model_dir", required=True, type=str)
     parser.add_argument("--model_name", default="model", type=str)
-    parser.add_argument("--episodes_per_start", default=5, type=int)
+    parser.add_argument("--episodes_per_start", default=100, type=int)
     parser.add_argument("--seed", default=789, type=int)
     parser.add_argument("--device", default="cuda", type=str)
     parser.add_argument("--render", action="store_true")
@@ -149,7 +149,7 @@ def main():
         start_id = getattr(env, "last_reset_start_idx", None)
         start_xy = get_env_start_xy(env)
         goal_xy = get_env_goal(env)
-
+        print(start_xy, goal_xy)
         done = False
         step_count = 0
         episode_return = 0.0

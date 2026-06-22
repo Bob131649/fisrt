@@ -219,7 +219,7 @@ def eval_policy(policy, replay_buffer, env_name, eval_episodes=10, plot=False, r
 def sample_keep_steps(env_name):
     if "antmaze" in env_name:
         return 10
-    return 30
+    return 20
 
 
 def get_start_step_threshold(start_id):
