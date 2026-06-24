@@ -1,4 +1,4 @@
-## train policy, check vae_eval_fig.png
+## train BC vae, check vae_eval_fig.png
 ```shell
 $ python train_reference.py --ExpID 1 --env_name maze2d-large-v1 --plot --mode pi --device cuda:0
 ```
