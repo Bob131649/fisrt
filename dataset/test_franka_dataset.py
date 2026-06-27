@@ -298,10 +298,8 @@ class FrankaImageDataset(Dataset):
         rgb = self.rgb_sources[segment_id]
         image = self._image_to_tensor(rgb[sample_idx])
         next_image = self._image_to_tensor(rgb[next_sample_idx])
-        if augment:
+        if augment and torch.rand(1).item() < 0.5:
             image, next_image = self._augment_images(image, next_image)
-        # else:
-        #     print("warning: no augmentation applied to image")
         state = self.states[idx]
         next_state = self.next_states[idx]
         return {
@@ -317,4 +315,4 @@ class FrankaImageDataset(Dataset):
         }
 
     def __getitem__(self, idx):
-        return self.get_item(idx, augment=False)
+        return self.get_item(idx, augment=True)

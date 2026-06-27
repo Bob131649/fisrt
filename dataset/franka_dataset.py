@@ -8,11 +8,8 @@ from torchvision.transforms import InterpolationMode
 from torchvision.transforms import functional as TF
 from torch.utils.data import Dataset
 
-'''
 
-现在props和rgb和gripper是简单的concat到一起 xijie推荐了一种film的方法 先作为备选 可以让小数据的拟合的效果会更好 如果效果不好的话 要试试resnet之后 再加上一个film
 
-'''
 class FrankaImageDataset(Dataset):
     """HDF5 dataset for robot image observations plus EEF proprioception."""
 
@@ -64,6 +61,7 @@ class FrankaImageDataset(Dataset):
     def _load_hdf5(self, dataset_path):
         root = self._load_replay_cache(dataset_path)
         data = root["data"]
+        terminal_key = "terminal" if "terminal" in data else "done"
         return {
             "rgb": data["rgb"],
             "rgb_shape": tuple(root.attrs["raw_rgb_shape"]),
@@ -71,7 +69,7 @@ class FrankaImageDataset(Dataset):
             "rotation": data["rotation"][:],
             "gripper_w": data["gripper_w"][:],
             "reward": data["reward"][:],
-            "terminal": data["terminal"][:],
+            "terminal": data[terminal_key][:],
             "timeout": data["timeout"][:],
         }
 
@@ -100,10 +98,28 @@ class FrankaImageDataset(Dataset):
             data_group = root.require_group("data")
             root.attrs["raw_rgb_shape"] = tuple(h5_file["rgb"].shape)
 
-            for key in ["translation", "rotation", "gripper_w", "reward", "terminal", "timeout"]:
+            for key in ["translation", "rotation", "gripper_w", "reward", "timeout"]:
                 value = h5_file[key][:]
                 data_group.array(
                     name=key,
+                    data=value,
+                    chunks=value.shape,
+                    compressor=None,
+                    overwrite=True,
+                )
+
+            terminal_key = "terminal" if "terminal" in h5_file else "done"
+            value = h5_file[terminal_key][:]
+            data_group.array(
+                name="terminal",
+                data=value,
+                chunks=value.shape,
+                compressor=None,
+                overwrite=True,
+            )
+            if terminal_key != "done":
+                data_group.array(
+                    name="done",
                     data=value,
                     chunks=value.shape,
                     compressor=None,
@@ -158,7 +174,6 @@ class FrankaImageDataset(Dataset):
         self.raw_states = np.concatenate([segment["raw_states"] for segment in segments], axis=0)
         self.raw_next_states = np.concatenate([segment["raw_next_states"] for segment in segments], axis=0)
         self.actions = np.concatenate([segment["actions"] for segment in segments], axis=0)
-        self.raw_actions = self.actions.copy()
         self.rewards = np.concatenate([segment["rewards"] for segment in segments], axis=0)
         self.not_dones = np.concatenate([segment["not_dones"] for segment in segments], axis=0)
 
@@ -261,6 +276,7 @@ class FrankaImageDataset(Dataset):
         random_erasing_p = 0.2
         erase_scale = (0.02, 0.08)
         erase_ratio = (0.3, 3.3)
+        # print("augmenting images with random shift pad:", random_shift_pad, "random erasing p:", random_erasing_p)
 
         if random_shift_pad > 0:
             _, h, w = image.shape
@@ -300,8 +316,6 @@ class FrankaImageDataset(Dataset):
         next_image = self._image_to_tensor(rgb[next_sample_idx])
         if augment:
             image, next_image = self._augment_images(image, next_image)
-        # else:
-        #     print("warning: no augmentation applied to image")
         state = self.states[idx]
         next_state = self.next_states[idx]
         return {
@@ -317,4 +331,4 @@ class FrankaImageDataset(Dataset):
         }
 
     def __getitem__(self, idx):
-        return self.get_item(idx, augment=False)
+        return self.get_item(idx, augment=True)

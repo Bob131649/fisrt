@@ -101,9 +101,11 @@ def get_best_logged_metric(log_dir, metric_name="L_Recon"):
 
 if __name__ == "__main__":
     default_dataset_paths = [
-        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep30_20260626_162422_add_rewarding20.hdf5",
-        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep31_20260625_112544_add_rewarding20.hdf5",
-        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep39_20260626_143912_add_rewarding20.hdf5",
+        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep24_20260617_171251.hdf5",
+        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep17_20260616_202143.hdf5",
+        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep19_20260617_114829.hdf5",
+        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep25_20260617_151011.hdf5",
+        "/home/guannan/first/dataset/real_dataset/raw_dataset/franka_pickplace_ep31_early.hdf5",
     ]
     defaults = {
         "save_model": True,
@@ -142,7 +144,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", default="cuda", type=str)
     parser.add_argument("--terminal_log_path", default="", type=str)
     parser.add_argument("--vae", action="store_true")
-    parser.add_argument("--concat_mode", default="film", choices=["default", "film"],type=str)
+    parser.add_argument("--concat_mode", default="default", choices=["default", "film"],type=str)
     args = parser.parse_args()
 
     for dataset_path in args.dataset_path:

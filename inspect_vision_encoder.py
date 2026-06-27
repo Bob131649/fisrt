@@ -643,6 +643,77 @@ def save_triptych_png(image_tensor, heatmap, keypoints, output_path, lines, alph
     cv2_mod.imwrite(output_path, frame)
 
 
+def parse_erase_rect(values):
+    if values is None:
+        return None
+    if len(values) != 4:
+        raise argparse.ArgumentTypeError("--erase_rect needs exactly four values: X1 Y1 X2 Y2")
+    return tuple(int(value) for value in values)
+
+
+def apply_erase_to_batch(batch, erase_rect, fill_mode="mean", enabled=True):
+    if not enabled or erase_rect is None:
+        return batch
+    erased = {
+        key: value.clone() if torch.is_tensor(value) else value
+        for key, value in batch.items()
+    }
+    image = erased["image"].clone()
+    _, _, height, width = image.shape
+    x1, y1, x2, y2 = erase_rect
+    x1 = max(0, min(width, int(x1)))
+    x2 = max(0, min(width, int(x2)))
+    y1 = max(0, min(height, int(y1)))
+    y2 = max(0, min(height, int(y2)))
+    if x2 <= x1 or y2 <= y1:
+        raise ValueError(f"invalid erase_rect after clipping: {(x1, y1, x2, y2)}")
+
+    if fill_mode == "zero":
+        fill = torch.zeros_like(image[:, :, y1:y2, x1:x2])
+    elif fill_mode == "random":
+        if image.dtype == torch.uint8:
+            fill = torch.randint(
+                0,
+                256,
+                image[:, :, y1:y2, x1:x2].shape,
+                dtype=image.dtype,
+                device=image.device,
+            )
+        else:
+            fill = torch.rand_like(image[:, :, y1:y2, x1:x2])
+            if image.max() > 1:
+                fill = fill * 255.0
+    else:
+        fill = image.float().mean(dim=(2, 3), keepdim=True).to(dtype=image.dtype)
+    image[:, :, y1:y2, x1:x2] = fill
+    erased["image"] = image
+    return erased
+
+
+def erase_image_tensor(image_tensor, erase_rect, fill_mode="mean", enabled=True):
+    if not enabled or erase_rect is None:
+        return image_tensor
+    batch = {"image": image_tensor.unsqueeze(0)}
+    return apply_erase_to_batch(batch, erase_rect, fill_mode=fill_mode, enabled=enabled)["image"][0]
+
+
+def print_erase_comparison(dataset, clean_saliency, erased_saliency):
+    clean_recon = np.asarray(clean_saliency["recon_action_norm"], dtype=np.float32)
+    erased_recon = np.asarray(erased_saliency["recon_action_norm"], dtype=np.float32)
+    diff_norm = erased_recon - clean_recon
+    diff_raw = action_to_raw(dataset, erased_recon) - action_to_raw(dataset, clean_recon)
+    print(
+        "erase delta:",
+        f"recon_mean={erased_saliency['recon_mean'] - clean_saliency['recon_mean']:+.6f}",
+        f"recon_sum={erased_saliency['recon_sum'] - clean_saliency['recon_sum']:+.6f}",
+        f"kl_raw={erased_saliency['kl_raw'] - clean_saliency['kl_raw']:+.6f}",
+        f"action_norm_l2={np.linalg.norm(diff_norm):.6f}",
+        f"action_raw_l2={np.linalg.norm(diff_raw):.6f}",
+    )
+    print("erase action norm diff:", format_vec(diff_norm))
+    print("erase action raw diff:", format_vec(diff_raw))
+
+
 def scale_frame(frame, display_scale):
     if display_scale == 1.0:
         return frame
@@ -874,9 +945,15 @@ def inspect_episode_all_steps(policy, dataset, episode_indices, sample_info, out
     for local_step, dataset_idx in enumerate(episode_indices):
         sample = dataset.get_item(int(dataset_idx), augment=False)
         batch = default_collate([sample])
+        batch_for_saliency = apply_erase_to_batch(
+            batch,
+            args.erase_rect,
+            fill_mode=args.erase_fill,
+            enabled=args.erase,
+        )
         saliency = compute_recon_saliency(
             policy,
-            batch,
+            batch_for_saliency,
             loss_mode=args.saliency_loss,
             spatial_coord_range=args.spatial_coord_range,
             spatial_weight_agg=args.spatial_weight_agg,
@@ -887,9 +964,16 @@ def inspect_episode_all_steps(policy, dataset, episode_indices, sample_info, out
         lines = [
             f"step {local_step + 1}/{len(episode_indices)} raw {raw_idx}->{next_raw_idx}",
             f"{saliency['backend']} recon {saliency['recon_mean']:.4f} kl {saliency['kl_raw']:.4f}",
+            f"erase {args.erase_rect}" if args.erase else "",
         ]
+        lines = [line for line in lines if line]
         frame = compose_saliency_triptych(
-            sample["image"],
+            erase_image_tensor(
+                sample["image"],
+                args.erase_rect,
+                fill_mode=args.erase_fill,
+                enabled=args.erase,
+            ),
             saliency["heatmap"],
             saliency["keypoints"],
             lines=lines,
@@ -938,7 +1022,7 @@ def inspect_episode_all_steps(policy, dataset, episode_indices, sample_info, out
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--model_dir", required=True, type=str)
     parser.add_argument("--checkpoint_name", default="model", type=str)
     parser.add_argument("--load_best", nargs="?", const=True, default=False, type=str2bool)
@@ -967,6 +1051,26 @@ def main():
         help="auto uses SpatialSoftmax when present, otherwise Grad-CAM on the average-pooling encoder.",
     )
     parser.add_argument("--fps", default=10.0, type=float)
+    parser.add_argument(
+        "--erase",
+        action="store_true",
+        help="Enable occlusion with --erase_rect before saliency.",
+    )
+    parser.add_argument(
+        "--erase_rect",
+        nargs=4,
+        type=int,
+        default=(70, 105, 165, 160),
+        metavar=("X1", "Y1", "X2", "Y2"),
+        help="Policy-input pixel rectangle to occlude when --erase is set.",
+    )
+    parser.add_argument(
+        "--erase_fill",
+        default="mean",
+        choices=["mean", "zero", "random"],
+        type=str,
+        help="Fill value for --erase_rect.",
+    )
     parser.add_argument("--display_scale", default=2.0, type=float)
     parser.add_argument("--video_path", default="", type=str)
     parser.add_argument("--no_window", action="store_true")
@@ -1117,10 +1221,27 @@ def main():
             saliency_backend=args.saliency_backend,
         )
         feature = saliency["feature"]
+        erased_saliency = None
+        if args.erase:
+            erased_batch = apply_erase_to_batch(
+                batch,
+                args.erase_rect,
+                fill_mode=args.erase_fill,
+                enabled=True,
+            )
+            erased_saliency = compute_recon_saliency(
+                policy,
+                erased_batch,
+                loss_mode=args.saliency_loss,
+                spatial_coord_range=args.spatial_coord_range,
+                spatial_weight_agg=args.spatial_weight_agg,
+                saliency_backend=args.saliency_backend,
+            )
     else:
         with torch.no_grad():
             feature = policy._batch_feature(batch).detach().cpu().numpy()[0]
         saliency = None
+        erased_saliency = None
 
     prefix = (
         f"dataset_{sample_info['segment_id']}_episode_{sample_info['episode_id_in_dataset']}"
@@ -1129,9 +1250,11 @@ def main():
     feature_path = os.path.join(output_dir, f"{prefix}_feature.npy")
     plot_path = os.path.join(output_dir, f"{prefix}_feature.png")
     visual_path = os.path.join(output_dir, f"{prefix}_{args.saliency_loss}_visual.png")
+    erased_visual_path = os.path.join(output_dir, f"{prefix}_{args.saliency_loss}_erase_visual.png")
     feature_path = unique_path(feature_path)
     plot_path = unique_path(plot_path)
     visual_path = unique_path(visual_path)
+    erased_visual_path = unique_path(erased_visual_path)
 
     np.save(feature_path, feature)
     title_context = (
@@ -1161,6 +1284,24 @@ def main():
             lines=visual_lines,
             alpha=float(args.overlay_alpha),
         )
+        if erased_saliency is not None:
+            erased_lines = visual_lines + [
+                f"erase {tuple(args.erase_rect)} fill={args.erase_fill}",
+                f"erased recon {erased_saliency['recon_mean']:.4f} kl {erased_saliency['kl_raw']:.4f}",
+            ]
+            save_triptych_png(
+                erase_image_tensor(
+                    sample["image"],
+                    args.erase_rect,
+                    fill_mode=args.erase_fill,
+                    enabled=True,
+                ),
+                erased_saliency["heatmap"],
+                erased_saliency["keypoints"],
+                erased_visual_path,
+                lines=erased_lines,
+                alpha=float(args.overlay_alpha),
+            )
 
     print("picked:", picked if picked is not None else {"sample_idx": dataset_idx})
     print("dataset_idx:", dataset_idx)
@@ -1195,10 +1336,14 @@ def main():
             f"saliency_loss={saliency['saliency_loss']:.6f}",
             f"keypoints={len(saliency['keypoints'])}",
         )
+        if erased_saliency is not None:
+            print_erase_comparison(dataset, saliency, erased_saliency)
     print("saved feature npy:", feature_path)
     print("saved feature plot:", plot_path)
     if saliency is not None:
         print("saved visual summary:", visual_path)
+        if erased_saliency is not None:
+            print("saved erased visual summary:", erased_visual_path)
 
 
 if __name__ == "__main__":
