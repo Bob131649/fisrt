@@ -17,8 +17,8 @@ from datasets.utils import get_dataset
 color_list = cm.rainbow(np.linspace(0, 1, 12))
 
 def eval_value(policy, buffer_expert, buffer_random, sample_size=1500, mode='q'):
-    state_random, _, _, _, _ = buffer_random.sample(sample_size)
-    state_expert, _, _, _, _ = buffer_expert.sample(sample_size)
+    state_random, _, _, _, _, _ = buffer_random.sample(sample_size)
+    state_expert, _, _, _, _, _ = buffer_expert.sample(sample_size)
 
     if mode == 'q':
         state_random = renorm_random_expert(state_random, buffer_expert, buffer_random)
@@ -43,7 +43,7 @@ def eval_value(policy, buffer_expert, buffer_random, sample_size=1500, mode='q')
 
     plt.clf()
     sc = plt.scatter(state_random[:, 0], state_random[:, 1], c=value_random_np, cmap="viridis", alpha=0.3,
-                     vmin=0, vmax=10
+                     vmin=0, vmax=50
     )
     plt.colorbar(sc, label=mode + "_value")
     plt.savefig("./eval_random_" + mode + ".png", dpi=300, bbox_inches="tight")
@@ -51,7 +51,7 @@ def eval_value(policy, buffer_expert, buffer_random, sample_size=1500, mode='q')
 
     plt.clf()
     sc = plt.scatter(state_expert[:, 0], state_expert[:, 1], c=value_expert_np, cmap="viridis", alpha=0.3,
-                     vmin=0, vmax=10
+                     vmin=0, vmax=50
     )
     plt.colorbar(sc, label=mode + "_value")
     plt.savefig("./eval_expert_" + mode + ".png", dpi=300, bbox_inches="tight")
@@ -145,10 +145,10 @@ if __name__ == "__main__":
     parser.add_argument("--env_name", default="maze2d-large-v1")     # OpenAI gym environment name
     parser.add_argument("--seed", default=456, type=int)                  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--eval_freq", default=10000, type=int)           # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=7e5, type=int)      # Max time steps to run environment for
+    parser.add_argument("--max_timesteps", default=1e6, type=int)      # Max time steps to run environment for
     parser.add_argument('--batch_size', default=512, type=int)
     parser.add_argument('--vae_lr', default=2e-4, type=float)	        # action policy (VAE) learning rate
-    parser.add_argument('--actor_lr', default=4e-4, type=float)	        # latent policy learning rate
+    parser.add_argument('--actor_lr', default=2e-4, type=float)	        # latent policy learning rate
     parser.add_argument('--critic_lr', default=2e-4, type=float)	    # critic learning rate
     parser.add_argument('--tau', default=0.005, type=float)	            # delayed learning rate
     parser.add_argument('--discount', default=0.99, type=float)	        # discount factor
@@ -206,8 +206,9 @@ if __name__ == "__main__":
     dataset_expert = get_dataset(env, dataset_path_expert)
     dataset_random = get_dataset(env, dataset_path_random)
     if 'antmaze' in args.env_name:
-        dataset_expert['rewards'] = (dataset_expert['rewards']*100) #(dataset['rewards']*300)
-        dataset_random['rewards'] = (dataset_random['rewards']*100) #(dataset['rewards']*300)
+        # dataset_expert['rewards'] = (dataset_expert['rewards']*100) #(dataset['rewards']*300)
+        # dataset_random['rewards'] = (dataset_random['rewards']*100) #(dataset['rewards']*300)
+        dataset_random['terminals'] = dataset_random['terminals'] * 0
 
     min_v = 0
     max_v = 110
@@ -232,9 +233,9 @@ if __name__ == "__main__":
     model_folder_name = os.path.join(args.log_dir, model_file_name)
     policy.load_reference('model', model_folder_name)
     # policy.load('model', model_folder_name)
-    # info = eval_policy(policy, env, replay_buffer_random, plot=args.plot)
     print(f"Using value of pre-trained policy model {model_folder_name}")
-    eval_value(policy, replay_buffer_expert, replay_buffer_random, mode='v')
+    # eval_value(policy, replay_buffer_expert, replay_buffer_random, mode='v')
+    # info = eval_policy(policy, env, replay_buffer_random, plot=args.plot)
 
     num_itr = int(args.max_timesteps/args.eval_freq)
     with tqdm(range(num_itr), desc='Epoch', leave=False) as tglobal:
@@ -267,7 +268,7 @@ if __name__ == "__main__":
                 print('done')
                 policy.eval()
                 info = eval_policy(policy, env, replay_buffer_random, plot=args.plot)
-                # eval_value(policy, replay_buffer_expert, replay_buffer_random, mode='q')
+                eval_value(policy, replay_buffer_expert, replay_buffer_random, mode='q')
                 # eval_value(policy, replay_buffer_expert, replay_buffer_random, mode='v')
                 policy.train()
 

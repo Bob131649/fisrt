@@ -5,7 +5,8 @@ import numpy as np
 import torch
 import numpy.linalg as LA
 
-GOAL = np.array([32.0, 24.0])
+GOAL = np.array([33.0, 25.0])
+GOAL_Dist = 0.5
 
 class ReplayBuffer(object):
     def __init__(self, env_name, state_dim, action_dim, device, max_size=int(2e7)):
@@ -20,6 +21,7 @@ class ReplayBuffer(object):
         self.storage = dict()
         self.storage['state'] = np.zeros((self.max_size, state_dim))
         self.storage['action'] = np.zeros((self.max_size, action_dim))
+        self.storage['next_action'] = np.zeros((self.max_size, action_dim))
         self.storage['next_state'] = np.zeros((self.max_size, state_dim))
         self.storage['reward'] = np.zeros((self.max_size, 1))
         self.storage['not_done'] = np.zeros((self.max_size, 1))
@@ -28,9 +30,10 @@ class ReplayBuffer(object):
 
         self.min_r, self.max_r = 0, 0
 
-    def add(self, state, action, next_state, reward, done):
+    def add(self, state, action, next_state, reward, done, next_action):
         self.storage['state'][self.ptr] = state.copy()
         self.storage['action'][self.ptr] = action.copy()
+        self.storage['next_action'][self.ptr] = next_action.copy()
         self.storage['next_state'][self.ptr] = next_state.copy()
 
         self.storage['reward'][self.ptr] = reward
@@ -52,6 +55,7 @@ class ReplayBuffer(object):
             torch.FloatTensor(self.storage['next_state'][ind]).to(self.device),
             torch.FloatTensor(self.storage['reward'][ind]).to(self.device).view(-1,1),
             torch.FloatTensor(self.storage['not_done'][ind]).to(self.device).view(-1,1),
+            torch.FloatTensor(self.storage['next_action'][ind]).to(self.device),
         )
 
     def save(self, filename):
@@ -85,6 +89,7 @@ class ReplayBuffer(object):
         self.storage['state'] = self.unnormalize_state(self.storage['state'])
         self.storage['next_state'] = self.unnormalize_state(self.storage['next_state'])
         self.storage['action'] = self.unnormalize_action(self.storage['action'])
+        self.storage['next_action'] = self.unnormalize_action(self.storage['next_action'])
 
         self.action_mean = np.mean(self.storage['action'][:self.size], axis=0)
         self.action_std = np.std(self.storage['action'][:self.size], axis=0)
@@ -94,6 +99,7 @@ class ReplayBuffer(object):
         self.storage['state'] = self.normalize_state(self.storage['state'])
         self.storage['next_state'] = self.normalize_state(self.storage['next_state'])
         self.storage['action'] = self.normalize_action(self.storage['action'])
+        self.storage['next_action'] = self.normalize_action(self.storage['next_action'])
 
         self.min_r = self.storage['reward'].min()
         self.max_r = self.storage['reward'].max()
@@ -101,33 +107,27 @@ class ReplayBuffer(object):
     def load(self, data, normalize=True, stats=None):
         assert('next_observations' in data.keys())
 
-        for i in range(data['observations'].shape[0]):
-            # if 'antmaze-large' in self.env_name:
-            #     next_state_pos = data['next_observations'][i][:2]
-            #     distance_to_goal = LA.norm(next_state_pos - GOAL)
-            #     if distance_to_goal < 0.5:
-            #         reward = 100.0
-            #         terminal = 1
-            #         # print(data['terminals'][i])
-            #     else:
-            #         reward = 0.0
-            #         terminal = 0
+        for i in range(data['observations'].shape[0]-1):
+            dist_to_nextobs = LA.norm(data['next_observations'][i][0:2] - data['observations'][i+1][0:2])
+            if dist_to_nextobs > 0:
+                # print(i, dist_to_nextobs, data['terminals'][i])
+                continue
+            
+            next_action = data['actions'][i + 1]
 
-            #     self.add(data['observations'][i], data['actions'][i], data['next_observations'][i],
-            #              reward, terminal)
-            # else:
+            reward = data['rewards'][i]
+            if 'antmaze' in self.env_name:
+            #     if data['rewards'][i] != 0:
+            #         data['terminals'][i] = True
+                next_state_pos = data['next_observations'][i][:2]
+                distance_to_goal = LA.norm(next_state_pos - GOAL)
+                if distance_to_goal < GOAL_Dist:
+                    reward = 1
+                else:
+                    reward = 0
+
             self.add(data['observations'][i], data['actions'][i], data['next_observations'][i],
-                    data['rewards'][i], data['terminals'][i])
-
-            # print(data['rewards'][i])
-            # if data['terminals'][i] != 0:
-            #     print(data['rewards'][i])
-
-            # dist_to_nextobs = LA.norm(data['next_observations'][i][0:2] - data['observations'][i][0:2])
-            # if dist_to_nextobs > 0.5:
-            #     print(i, dist_to_nextobs, data['terminals'][i])
-            # if data['terminals'][i] == 1:
-            #     print('terminal state:', i, 'reward:', data['rewards'][i])
+                    reward, data['terminals'][i], next_action)
 
         if stats is None:
             print('compute stats')
@@ -156,3 +156,4 @@ class ReplayBuffer(object):
             self.storage['state'] = self.normalize_state(self.storage['state'])
             self.storage['next_state'] = self.normalize_state(self.storage['next_state'])
             self.storage['action'] = self.normalize_action(self.storage['action'])
+            self.storage['next_action'] = self.normalize_action(self.storage['next_action'])

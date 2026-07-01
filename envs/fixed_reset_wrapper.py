@@ -21,9 +21,9 @@ ENV_RESET_PRESETS = {
             [1.0, 6.0],
             [1.0, 10.0],
         ],
-        "fixed_goal": [7.0, 9.0],
+        "fixed_goal": [33.0, 25.0],
         "start_format": "rowcol",
-        "goal_format": "rowcol",
+        "goal_format": "xy",
     },
 }
 
