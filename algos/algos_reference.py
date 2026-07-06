@@ -37,9 +37,10 @@ class Latent(nn.Module):
         self.expectile = expectile
         self.kl_beta = kl_beta
         self.doubleq_min = doubleq_min
-        self.huber_loss = torch.nn.HuberLoss(delta=1.0)
 
         self.g_clip = 0.5
+        self.total_count = 0
+
         self.min_v, self.max_v = min_v, max_v 
 
     def select_action(self, state, need_q=True):
@@ -92,24 +93,35 @@ class Latent(nn.Module):
             next_q1, next_q2 = self.qnet(state_expert_ine, a_expert_ine)
             target_v_expert = (next_q1 + next_q2) / 2
         
+            # if self.total_count < 10000:
+            #     batch_scale = torch.quantile(
+            #         target_v_expert.detach().abs().flatten().float(),
+            #         0.99,
+            #     )
+            #     # print('batch_scale', batch_scale.item(), 'vnet.scale', self.vnet.scale.item())
+            #     self.vnet.scale.copy_(
+            #         torch.maximum(self.vnet.scale, batch_scale)
+            #     )
+            #     self.total_count += 1
+
         # Critic Training
         state_expert_inr += torch.randn_like(state_expert_inr) * 0.05
         # state_random_inr += torch.randn_like(state_random_inr) * 0.05
 
-        current_v_expert = self.vnet(state_expert_inr)
-        current_v_random = self.vnet(state_random_inr)
-
-        v_loss_expert = self.huber_loss(current_v_expert, target_v_expert)
-        # v_loss_expert = F.mse_loss(current_v_expert, target_v_expert)
+        current_v_expert = self.vnet.forward_norm(state_expert_inr)
+        current_v_random = self.vnet.forward_norm(state_random_inr)
+        target_v_expert = target_v_expert/self.vnet.scale
+        
+        v_loss_expert = F.mse_loss(current_v_expert, target_v_expert)
         v_loss_random = torch.mean(current_v_random.pow(2))
 
-        v_loss = v_loss_expert + v_loss_random*0.05
+        v_loss = v_loss_expert + v_loss_random*1.0
 
         self.vnet_optimizer.zero_grad()
         v_loss.backward()
-        # torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=self.g_clip)
+        torch.nn.utils.clip_grad_norm_(self.vnet.parameters(), max_norm=self.g_clip)
         self.vnet_optimizer.step()
-        return v_loss.item(), current_v_random.mean().item(), current_v_expert.mean().item()
+        return v_loss.item(), current_v_random.mean().item()*self.vnet.scale.item(), current_v_expert.mean().item()*self.vnet.scale.item()
 
     def train_q(self, batch, idx):
         state, action, next_state, reward, not_done, next_action = batch
@@ -119,12 +131,20 @@ class Latent(nn.Module):
             next_target_v = (next_q1 + next_q2) / 2
             # next_target_v = torch.min(target_q1, target_q2)
             target_q = reward + not_done * self.discount * next_target_v.clamp(self.min_v, self.max_v)
+            
+            # batch_scale = torch.quantile(
+            #     target_q.detach().abs().flatten().float(),
+            #     0.99,
+            # )
+            # # print('batch_scale', batch_scale.item(), 'vnet.scale', self.vnet.scale.item())
+            # self.qnet.scale.copy_(
+            #     torch.maximum(self.qnet.scale, batch_scale)
+            # )
 
         # Critic Training
-        current_q1, current_q2 = self.qnet(state, action)
-
-        # critic_loss_1 = self.huber_loss(current_q1, target_q)
-        # critic_loss_2 = self.huber_loss(current_q2, target_q)
+        current_q1, current_q2 = self.qnet.forward_norm(state, action)
+        target_q = target_q/self.qnet.scale
+        
         critic_loss_1 = F.mse_loss(current_q1, target_q)
         critic_loss_2 = F.mse_loss(current_q2, target_q)
         critic_loss = critic_loss_1 + critic_loss_2
@@ -134,11 +154,12 @@ class Latent(nn.Module):
         torch.nn.utils.clip_grad_norm_(self.qnet.parameters(), max_norm=self.g_clip)
         self.qnet_optimizer.step()
         
-        if idx % 1 == 0:
+        if idx % 10 == 0:
             for param, target_param in zip(self.qnet.parameters(), self.qnet_target.parameters()):
-                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-            
-        return critic_loss.item(), current_q1.mean().item()
+                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)            
+            # self.qnet_target.scale.copy_(self.qnet.scale)
+
+        return critic_loss.item(), current_q1.mean().item()*self.qnet.scale.item()
 
     def train_policy(self, state, action):        
         recons_action, mu, log_var = self.actor_vae(state, action)

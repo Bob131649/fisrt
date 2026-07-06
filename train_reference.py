@@ -42,7 +42,7 @@ def eval_value(policy, buffer_expert, buffer_random, sample_size=1500, mode='q')
 
     plt.clf()
     sc = plt.scatter(state_random[:, 0], state_random[:, 1], c=value_random_np, cmap="viridis", alpha=0.3,
-                     vmin=0, vmax=10
+                     vmin=0, vmax=5
     )
     plt.colorbar(sc, label=mode + "_value")
     plt.savefig("./eval_random_" + mode + ".png", dpi=300, bbox_inches="tight")
@@ -50,7 +50,7 @@ def eval_value(policy, buffer_expert, buffer_random, sample_size=1500, mode='q')
 
     plt.clf()
     sc = plt.scatter(state_expert[:, 0], state_expert[:, 1], c=value_expert_np, cmap="viridis", alpha=0.3,
-                     vmin=0, vmax=10
+                     vmin=0, vmax=50
     )
     plt.colorbar(sc, label=mode + "_value")
     plt.savefig("./eval_expert_" + mode + ".png", dpi=300, bbox_inches="tight")
@@ -144,12 +144,12 @@ if __name__ == "__main__":
     parser.add_argument("--env_name", default="maze2d-large-v1")     # OpenAI gym environment name
     parser.add_argument("--seed", default=789, type=int)                  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--eval_freq", default=10000, type=int)           # How often (time steps) we evaluate
-    parser.add_argument("--max_timesteps", default=3e6, type=int)      # Max time steps to run environment for
+    parser.add_argument("--max_timesteps", default=4e6, type=int)      # Max time steps to run environment for
     parser.add_argument('--batch_size', default=512, type=int)
-    parser.add_argument('--vae_lr', default=2e-4, type=float)	        # action policy (VAE) learning rate
-    parser.add_argument('--actor_lr', default=2e-4, type=float)	        # latent policy learning rate
-    parser.add_argument('--critic_lr', default=2e-4, type=float)	    # critic learning rate
-    parser.add_argument('--tau', default=0.003, type=float)	            # delayed learning rate
+    parser.add_argument('--vae_lr', default=3e-4, type=float)	        # action policy (VAE) learning rate
+    parser.add_argument('--actor_lr', default=3e-4, type=float)	        # latent policy learning rate
+    parser.add_argument('--critic_lr', default=3e-4, type=float)	    # critic learning rate
+    parser.add_argument('--tau', default=0.005, type=float)	            # delayed learning rate
     parser.add_argument('--discount', default=0.99, type=float)	        # discount factor
 
     parser.add_argument('--expectile', default=0.85, type=float)	        # expectile to compute weight for samples
@@ -190,7 +190,6 @@ if __name__ == "__main__":
     env.action_space.seed(args.seed)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
-
 
     # Load Dataset
     # dataset = d4rl.qlearning_dataset(env)  # Load d4rl dataset
@@ -238,6 +237,7 @@ if __name__ == "__main__":
         for epoch_idx in tglobal:
             v_list, crit_list, rec_list, kl_list = [], [], [], []
             qvalue_list, vrandom_list, vexpert_list = [], [], []
+            q_update_list = []
 
             if args.mode == 'pi':
                 with tqdm(range(args.eval_freq), desc='Batch', leave=False) as tepoch:
@@ -278,10 +278,14 @@ if __name__ == "__main__":
 
                         crit_list.append(crit_loss)
                         qvalue_list.append(q_value)
-                        tepoch.set_postfix(q_loss=np.mean(crit_list), q_value=np.mean(qvalue_list))
-                print()
-                tglobal.set_postfix(q_loss=np.mean(crit_list), q_value=np.mean(qvalue_list))
 
+                        tepoch.set_postfix(q_loss=np.mean(crit_list), 
+                                           q_value=np.mean(qvalue_list))
+                
+                print(' q scale', policy.qnet.scale.item())
+                tglobal.set_postfix(q_loss=np.mean(crit_list), 
+                                           q_value=np.mean(qvalue_list))
+                
             if args.mode == 'v':
                 eval_value(policy, replay_buffer_expert, replay_buffer_random, mode='v')
                 with tqdm(range(args.eval_freq), desc='Batch', leave=False) as tepoch:
@@ -302,9 +306,9 @@ if __name__ == "__main__":
                         tepoch.set_postfix(v_loss=np.mean(v_list), 
                                            v_random=np.mean(vrandom_list),
                                            v_expert=np.mean(vexpert_list))
-                print()
+                print(' value scale', policy.vnet.scale.item())
                 tglobal.set_postfix(v_loss=np.mean(v_list), v_random=np.mean(vrandom_list),v_expert=np.mean(vexpert_list))
-                
+
             # Save Model
             if epoch_idx % args.save_freq == 0 and args.save_model and epoch_idx != 0:
                 policy.save('model', folder_name)

@@ -78,6 +78,7 @@ class Critic(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Critic, self).__init__()
         hidden_size = (256, 256, 256)
+        self.register_buffer("scale", torch.tensor(100.0))
 
         self.l1 = nn.Linear(state_dim + action_dim, hidden_size[0])
         self.l2 = nn.Linear(hidden_size[0], hidden_size[1])
@@ -89,25 +90,28 @@ class Critic(nn.Module):
         self.l7 = nn.Linear(hidden_size[1], hidden_size[2])
         self.l8 = nn.Linear(hidden_size[2], 1)
 
-    def forward(self, state, action):
+    def forward_norm(self, state, action):
         q1 = F.relu(self.l1(torch.cat([state, action], 1)))
         q1 = F.relu(self.l2(q1))
         q1 = F.relu(self.l3(q1))
-        q1 = (self.l4(q1))
+        q1 = self.l4(q1)
 
         q2 = F.relu(self.l5(torch.cat([state, action], 1)))
         q2 = F.relu(self.l6(q2))
         q2 = F.relu(self.l7(q2))
-        q2 = (self.l8(q2))
+        q2 = self.l8(q2)
         return q1, q2
+    
+    def forward(self, state, action):
+        q1, q2 = self.forward_norm(state, action)
+        return q1*self.scale, q2*self.scale
 
     def q1(self, state, action):
         q1 = F.relu(self.l1(torch.cat([state, action], 1)))
         q1 = F.relu(self.l2(q1))
         q1 = F.relu(self.l3(q1))
-        q1 = (self.l4(q1))
+        q1 = self.l4(q1)*self.scale
         return q1
-    
     
 
 class Value(nn.Module):
@@ -120,9 +124,15 @@ class Value(nn.Module):
         self.v3 = nn.Linear(hidden_size[1], hidden_size[2])
         self.v4 = nn.Linear(hidden_size[2], 1)
 
-    def forward(self, state):
+        self.register_buffer("scale", torch.tensor(100.0))
+
+    def forward_norm(self, state):
         v = F.relu(self.v1(state))
         v = F.relu(self.v2(v))
         v = F.relu(self.v3(v))
-        v = (self.v4(v))
+        v = self.v4(v)
         return v
+    
+    def forward(self, state):
+        v = self.forward_norm(state)
+        return v*self.scale
