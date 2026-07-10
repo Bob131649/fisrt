@@ -1,13 +1,16 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import copy
+
+from networks.vision_encoder import build_vision_encoder
+
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, latent_dim, max_action):
+    def __init__(self, state_dim, latent_dim, max_action, use_encoder=False):
         super(Actor, self).__init__()
         hidden_size = (256, 256, 256)
+        self.encoder = build_vision_encoder(proprio_dim=state_dim) if use_encoder else None
+        state_dim = self.encoder.output_dim if self.encoder is not None else state_dim
 
         self.pi1 = nn.Linear(state_dim, hidden_size[0])
         self.pi2 = nn.Linear(hidden_size[0], hidden_size[1])
@@ -17,18 +20,22 @@ class Actor(nn.Module):
         self.max_action = max_action
 
     def forward(self, state):
+        if self.encoder is not None and isinstance(state, dict):
+            state = self.encoder(state)
         a = F.relu(self.pi1(state))
         a = F.relu(self.pi2(a))
         a = F.relu(self.pi3(a))
         a = self.pi4(a)
         a = self.max_action * torch.tanh(a)
-
         return a
 
+
 class ActorVAE(nn.Module):
-    def __init__(self, state_dim, action_dim, latent_dim, max_action, device):
+    def __init__(self, state_dim, action_dim, latent_dim, max_action, device, use_encoder=False):
         super(ActorVAE, self).__init__()
         hidden_size = (256, 256, 256)
+        self.encoder = build_vision_encoder(proprio_dim=state_dim) if use_encoder else None
+        state_dim = self.encoder.output_dim if self.encoder is not None else state_dim
 
         self.e1 = nn.Linear(state_dim + action_dim, hidden_size[0])
         self.e2 = nn.Linear(hidden_size[0], hidden_size[1])
@@ -40,31 +47,38 @@ class ActorVAE(nn.Module):
         self.d1 = nn.Linear(state_dim + latent_dim, hidden_size[0])
         self.d2 = nn.Linear(hidden_size[0], hidden_size[1])
         self.d3 = nn.Linear(hidden_size[1], hidden_size[2])
-        self.d4 = nn.Linear(hidden_size[2], action_dim)  
+        self.d4 = nn.Linear(hidden_size[2], action_dim)
 
         self.max_action = max_action
         self.action_dim = action_dim
         self.latent_dim = latent_dim
         self.device = device
 
+    def encode_state(self, state):
+        if self.encoder is not None and isinstance(state, dict):
+            return self.encoder(state)
+        return state
+
     def forward(self, state, action):
+        state = self.encode_state(state)
         z = F.relu(self.e1(torch.cat([state, action], 1)))
         z = F.relu(self.e2(z))
         z = F.relu(self.e3(z))
 
         mean = self.mean(z)
         log_var = self.log_var(z)
-        std = torch.exp(log_var/2)
+        std = torch.exp(log_var / 2)
         z = mean + std * torch.randn_like(std)
 
         u = self.decode(state, z)
-
         return u, mean, log_var
 
     def decode(self, state, z=None, clip=False):
+        state = self.encode_state(state)
         if z is None:
             if clip:
-                z = torch.randn((state.shape[0], self.latent_dim)).to(self.device).clamp(-self.max_action, self.max_action)
+                z = torch.randn((state.shape[0], self.latent_dim)).to(self.device)
+                z = z.clamp(-self.max_action, self.max_action)
             else:
                 z = torch.randn((state.shape[0], self.latent_dim)).to(self.device).clamp(-3, 3)
 
@@ -74,10 +88,13 @@ class ActorVAE(nn.Module):
         a = self.d4(a)
         return a
 
+
 class Critic(nn.Module):
     def __init__(self, state_dim, action_dim):
         super(Critic, self).__init__()
         hidden_size = (256, 256, 256)
+        self.encoder = build_vision_encoder(proprio_dim=state_dim)
+        state_dim = self.encoder.output_dim
 
         self.l1 = nn.Linear(state_dim + action_dim, hidden_size[0])
         self.l2 = nn.Linear(hidden_size[0], hidden_size[1])
@@ -93,46 +110,59 @@ class Critic(nn.Module):
         self.v2 = nn.Linear(hidden_size[0], hidden_size[1])
         self.v3 = nn.Linear(hidden_size[1], hidden_size[2])
         self.v4 = nn.Linear(hidden_size[2], 1)
-        
-    def forward(self, state, action):
+
+    def forward_norm(self, state, action):
+        state = self.encoder(state)
         q1 = F.relu(self.l1(torch.cat([state, action], 1)))
         q1 = F.relu(self.l2(q1))
         q1 = F.relu(self.l3(q1))
-        q1 = (self.l4(q1))
+        q1 = self.l4(q1)
 
         q2 = F.relu(self.l5(torch.cat([state, action], 1)))
         q2 = F.relu(self.l6(q2))
         q2 = F.relu(self.l7(q2))
-        q2 = (self.l8(q2))
+        q2 = self.l8(q2)
         return q1, q2
 
+    def forward(self, state, action):
+        return self.forward_norm(state, action)
+
     def q1(self, state, action):
+        state = self.encoder(state)
         q1 = F.relu(self.l1(torch.cat([state, action], 1)))
         q1 = F.relu(self.l2(q1))
         q1 = F.relu(self.l3(q1))
-        q1 = (self.l4(q1))
+        q1 = self.l4(q1)
         return q1
-    
+
     def v(self, state):
+        state = self.encoder(state)
         v = F.relu(self.v1(state))
         v = F.relu(self.v2(v))
         v = F.relu(self.v3(v))
-        v = (self.v4(v))
+        v = self.v4(v)
         return v
+
 
 class Value(nn.Module):
     def __init__(self, state_dim):
         super(Value, self).__init__()
         hidden_size = (256, 256, 256)
+        self.encoder = build_vision_encoder(proprio_dim=state_dim)
+        state_dim = self.encoder.output_dim
 
         self.v1 = nn.Linear(state_dim, hidden_size[0])
         self.v2 = nn.Linear(hidden_size[0], hidden_size[1])
         self.v3 = nn.Linear(hidden_size[1], hidden_size[2])
         self.v4 = nn.Linear(hidden_size[2], 1)
 
-    def forward(self, state):
+    def forward_norm(self, state):
+        state = self.encoder(state)
         v = F.relu(self.v1(state))
         v = F.relu(self.v2(v))
         v = F.relu(self.v3(v))
-        v = (self.v4(v))
+        v = self.v4(v)
         return v
+
+    def forward(self, state):
+        return self.forward_norm(state)
